@@ -1,0 +1,14 @@
+resource:
+  version: "v1.0.0"
+  id: wrong
+  name: Test resource
+workflows:
+  main:
+    jobs:
+      check:
+        sandbox-image: ghcr.io/example/default:latest
+        limits:
+          memory: 64MiB
+          step-timeout: 1s
+        steps:
+        - run: 'true'

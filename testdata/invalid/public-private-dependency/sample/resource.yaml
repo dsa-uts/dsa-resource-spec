@@ -1,0 +1,25 @@
+resource:
+  version: "v1.0.0"
+  id: sample
+  name: Test resource
+workflows:
+  main:
+    jobs:
+      public:
+        sandbox-image: ghcr.io/example/default:latest
+        limits:
+          memory: 64MiB
+          step-timeout: 1s
+        steps:
+        - run: 'true'
+        visibility: public
+        depends:
+        - private
+      private:
+        sandbox-image: ghcr.io/example/default:latest
+        limits:
+          memory: 64MiB
+          step-timeout: 1s
+        steps:
+        - run: 'true'
+        visibility: private
