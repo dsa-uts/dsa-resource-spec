@@ -1,15 +1,15 @@
 package resource
 
 import (
-	"bytes"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"path"
 	"sync"
 
 	"github.com/distribution/reference"
-	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/google/jsonschema-go/jsonschema"
 )
 
 // Manifest is the author/CI index. It is not required when reading a release ZIP.
@@ -32,12 +32,12 @@ type ImageBuild struct {
 
 //go:embed schemas/resources.schema.json
 var manifestSchemaBytes []byte
-var manifestSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
-	c := jsonschema.NewCompiler()
-	if err := c.AddResource("manifest.json", bytes.NewReader(manifestSchemaBytes)); err != nil {
+var manifestSchema = sync.OnceValues(func() (*jsonschema.Resolved, error) {
+	var schema jsonschema.Schema
+	if err := json.Unmarshal(manifestSchemaBytes, &schema); err != nil {
 		return nil, err
 	}
-	return c.Compile("manifest.json")
+	return schema.Resolve(nil)
 })
 
 // ReadManifest validates the author index, resources and image build configuration.

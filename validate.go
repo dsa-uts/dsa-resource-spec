@@ -1,27 +1,27 @@
 package resource
 
 import (
-	"bytes"
 	_ "crypto/sha256"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"strings"
 	"sync"
 
 	"github.com/distribution/reference"
-	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/google/jsonschema-go/jsonschema"
 	"golang.org/x/mod/semver"
 )
 
 //go:embed schemas/resource.schema.json
 var schemaBytes []byte
-var compiledSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
-	c := jsonschema.NewCompiler()
-	if err := c.AddResource("resource.json", bytes.NewReader(schemaBytes)); err != nil {
+var compiledSchema = sync.OnceValues(func() (*jsonschema.Resolved, error) {
+	var schema jsonschema.Schema
+	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
 		return nil, err
 	}
-	return c.Compile("resource.json")
+	return schema.Resolve(nil)
 })
 
 func decode(data []byte) (*Definition, error) {
