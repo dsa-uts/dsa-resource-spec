@@ -107,10 +107,6 @@
                   "type": "string",
                   "minLength": 1
                 },
-                "working-directory": {
-                  "type": "string",
-                  "pattern": "^/workspace(?:/[a-zA-Z0-9_.-]+)*$"
-                },
                 "limits": {
                   "type": "object",
                   "properties": {

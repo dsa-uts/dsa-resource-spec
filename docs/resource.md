@@ -41,7 +41,7 @@ workflows:
 | --- | --- |
 | `description-path`、`presets.files[].source`、`stdin.path`、`expected.*.path` | `resource.yaml` を置いた 課題ディレクトリ |
 | `presets.files[].path` | 読み取り専用の `/preset` |
-| `artifacts.*[].path` | 作業領域（`/workspace`） |
+| `artifacts.*[].path` | 作業領域 |
 
 ## 課題情報
 
@@ -89,12 +89,11 @@ Job は独立した sandbox で実行する。同じ Job の Step は作業領�
 | `visibility` | 任意 | `public` または `private`。省略時 `public`(既定で公開)。 |
 | `depends` | 任意 | 先行して完了している必要がある Job ID 配列。省略時 `[]`。 |
 | `sandbox-image` | 必須 | タグまたは digest を含む完全なイメージ参照。 |
-| `working-directory` | 任意 | Step の作業ディレクトリ。`/workspace` またはその配下の絶対パス。省略時 `/workspace`。 |
 | `limits` | 必須 | 使用量と実行時間の上限。 |
 | `artifacts` | 任意 | Job 間で明示的に受け渡す Artifact。 |
 | `steps` | 必須 | 1 個以上の Step を実行順に並べた配列。 |
 
-`working-directory` の各階層名は英数字・`_`・`.`・`-` のみ。`.`・`..` の階層や末尾の `/` は不可。
+各 Step は Job の作業領域をカレントディレクトリとして開始する。作業領域の絶対パスは Judge が決める。必要なら `run` 内で `cd` する。Step 内の `cd` は次の Step に引き継がない。
 
 実行権限と結果の公開範囲は [実行規則](runtime.md#実行権限と順序) を参照。
 
@@ -132,9 +131,9 @@ jobs:
 | --- | --- | --- |
 | `artifacts.inputs[].from-job` | 必須 | 成果物を生成する Job の ID。同一 Workflow 内のみ指定可。 |
 | `artifacts.inputs[].name` | 必須 | 生成元 Job の成果物名。 |
-| `artifacts.inputs[].path` | 必須 | 作業領域（`/workspace`） 内の配置先の通常ファイルのパス。 |
+| `artifacts.inputs[].path` | 必須 | 作業領域内の配置先の通常ファイルのパス。 |
 | `artifacts.outputs[].name` | 必須 | 同一 Job 内で一意な Artifact name。 |
-| `artifacts.outputs[].path` | 必須 | 作業領域（`/workspace`） 内の回収元の通常ファイルのパス。 |
+| `artifacts.outputs[].path` | 必須 | 作業領域内の回収元の通常ファイルのパス。 |
 | `artifacts.outputs[].visibility` | 任意 | `public` または `private`。省略時 `private`(既定で非公開)。 |
 | `artifacts.outputs[].content-type` | public の場合 | 配信時の `Content-Type`。`private` では指定禁止。 |
 
@@ -180,7 +179,7 @@ limits:
 | `step-timeout` | 必須 | Step timeout の既定値。例: `"2s"`、`"300ms"`。 |
 | `stdout-size` | 任意 | stdout capture 上限。 |
 | `stderr-size` | 任意 | stderr capture 上限。 |
-| `workspace-size` | 任意 | 作業領域（`/workspace`） の容量上限。省略時 `256MiB`。 |
+| `workspace-size` | 任意 | 作業領域の容量上限。省略時 `256MiB`。 |
 | `artifact-size` | 任意 | 1 成果物ファイル あたりの保存上限。省略時 `1MiB`。 |
 
 ### タイムアウトの書式
@@ -239,4 +238,4 @@ expected:
 
 期待出力には `match` も必須。`exact` は完全一致、`easy` は空白を正規化、`sorted` はさらに行内の要素順を無視する。厳密な手順は [比較規則](runtime.md#出力の比較) を参照。
 
-`stdin.path` の内容は Judge が標準入力に流し、期待値ファイルは Judge 内で比較に使う。どちらも 作業領域（`/workspace`） に配置しない。
+`stdin.path` の内容は Judge が標準入力に流し、期待値ファイルは Judge 内で比較に使う。どちらも作業領域に配置しない。

@@ -31,11 +31,6 @@ func validateJob(id string, job Job, jobs map[string]Job) error {
 	if _, err := imageReference(job.SandboxImage); err != nil {
 		return err
 	}
-	if job.WorkingDirectory != "" && job.WorkingDirectory != "/workspace" {
-		if err := relative(strings.TrimPrefix(job.WorkingDirectory, "/workspace/")); err != nil {
-			return err
-		}
-	}
 	for _, dependency := range job.Depends {
 		producer, exists := jobs[dependency]
 		if !exists || dependency == id {

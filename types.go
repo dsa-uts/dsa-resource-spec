@@ -29,14 +29,13 @@ type Preset struct {
 }
 
 type Job struct {
-	Name             string     `yaml:"name,omitempty" json:"name,omitempty"`
-	Visibility       string     `yaml:"visibility,omitempty" json:"visibility,omitempty"`
-	Depends          []string   `yaml:"depends,omitempty" json:"depends,omitempty"`
-	SandboxImage     string     `yaml:"sandbox-image" json:"sandbox-image"`
-	WorkingDirectory string     `yaml:"working-directory,omitempty" json:"working-directory,omitempty"`
-	Limits           Limits     `yaml:"limits" json:"limits"`
-	Artifacts        *Artifacts `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
-	Steps            []Step     `yaml:"steps" json:"steps"`
+	Name         string     `yaml:"name,omitempty" json:"name,omitempty"`
+	Visibility   string     `yaml:"visibility,omitempty" json:"visibility,omitempty"`
+	Depends      []string   `yaml:"depends,omitempty" json:"depends,omitempty"`
+	SandboxImage string     `yaml:"sandbox-image" json:"sandbox-image"`
+	Limits       Limits     `yaml:"limits" json:"limits"`
+	Artifacts    *Artifacts `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
+	Steps        []Step     `yaml:"steps" json:"steps"`
 }
 
 type Limits struct {

@@ -136,6 +136,7 @@ func TestFixtures(t *testing.T) {
 func TestDefinitionRejections(t *testing.T) {
 	for name, replacement := range map[string]struct{ before, after string }{
 		"unknown field":      {"resource:", "unknown: true\nresource:"},
+		"working-directory":  {"      build:\n", "      build:\n        working-directory: /workspace\n"},
 		"duplicate key":      {"resource:", "resource: {}\nresource:"},
 		"multiple documents": {"resource:", "---\n{}\n---\nresource:"},
 		"unqualified image":  {"ghcr.io/example/default:latest", "default:latest"},
