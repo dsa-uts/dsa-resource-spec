@@ -23,6 +23,8 @@ check
 
 ## CLI 
 
+Linux 用バイナリ（amd64・arm64）の取得・公開は [CLI のリリース](docs/cli-release.md) を参照してください。
+
 ```sh
 # validate <resource dir>: リソース定義を検証する
 go run ./cmd/resource-spec validate testdata/valid
