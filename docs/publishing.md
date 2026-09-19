@@ -29,7 +29,7 @@ sandbox-images:
 
 `context` と `dockerfile` はリポジトリルートからの相対パス。`context` は専用のディレクトリ、`image` は書き込み可能なタグなし GHCR repository とする。対応する platform は上記の2種類。
 
-ビルド入力は通常ファイルのみとし、`.git` と課題 manifest を含めない。Dockerfile は単一の tag+sha256 digest 固定 `FROM` を使う。`ADD` と外部 frontend は受け付けない。
+Dockerfile とビルドコンテキストの内容はレビューと Docker によるビルドで確認する。manifest の検証ではビルド入力の存在や内容は確認しない。
 
 ## 2. ローカルで検証する
 
@@ -39,25 +39,7 @@ sandbox-images:
 go run ./cmd/resource-spec manifest .
 ```
 
-課題一覧、各課題の定義・参照素材、イメージのビルド入力を検証し、結果を JSON で出力する。
-
-### ZIP を手元で生成する
-
-公開処理はイメージのタグを digest に解決し、`archive` に渡す。同じ処理を手元で試すには、`images.json` に元の参照と解決済み参照の対応表を用意する。
-
-```json
-{
-  "ghcr.io/example/default:latest": "ghcr.io/example/default@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-}
-```
-
-上の digest は書式例。実際の配布ではレジストリで解決した値を使う。
-
-```sh
-go run ./cmd/resource-spec archive --images images.json --output /tmp/sample-v1.0.0.zip testdata/valid
-```
-
-出力先は課題ディレクトリの外を指定する。ZIP は直下の `resource.yaml` を配布用定義に置き換え、補助画像や空ディレクトリを含めて課題全体を収録し、実行ビットを保持する。作者用ファイルは変更しない。CLI は一時ファイルで生成し、成功した場合だけ出力先へ移動する。
+課題一覧、各課題の定義・参照素材、イメージのビルド設定を検証し、結果を JSON で出力する。
 
 ## 3. 公開を設定する
 

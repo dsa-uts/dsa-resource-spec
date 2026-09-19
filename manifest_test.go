@@ -1,7 +1,6 @@
 package resource_test
 
 import (
-	"io/fs"
 	"os"
 	"strings"
 	"testing"
@@ -66,17 +65,10 @@ func TestManifestFixtures(t *testing.T) {
 	}
 }
 
-func TestBuildInputs(t *testing.T) {
+func TestBuildConfiguration(t *testing.T) {
 	m := manifestFixture(t)
 	m["resources.yaml"].Data = []byte("resources: []\nsandbox-images:\n  default:\n    build:\n      context: sandbox\n      dockerfile: sandbox/Dockerfile\n      image: ghcr.io/example/default\n      platforms: [linux/amd64]\n")
-	m["sandbox/Dockerfile"] = &fstest.MapFile{Data: []byte("FROM debian:slim@sha256:" + strings.Repeat("a", 64) + "\n")}
 	if _, err := resource.ReadManifest(m); err != nil {
 		t.Fatal(err)
-	}
-	for _, mode := range []fs.FileMode{fs.ModeSymlink, fs.ModeNamedPipe} {
-		m["sandbox/bad"] = &fstest.MapFile{Mode: mode}
-		if _, err := resource.ReadManifest(m); err == nil {
-			t.Fatal("invalid build file accepted")
-		}
 	}
 }
