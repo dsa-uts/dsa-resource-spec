@@ -11,27 +11,26 @@
 
 ## 開発環境
 
-Nix と direnv をインストールし、direnv の shell hook を設定した環境で実行します。
+* Go 1.27
+* Python 3.14
 
-```sh
-direnv allow
+GoやPythonの環境はNix, direnvで設定することも可。
+
+```
+direnv allow .
 check
 ```
 
-`check` は Go の vet・テストと Python のテストを実行します。direnv を使わない場合は `nix develop path:.` で同じ devshell に入れます。
-
-Go は 1.27 系 stable（lock 時点で 1.27.1）。`flake.lock` で環境を固定し、`GOTOOLCHAIN=local` で Nix の Go を使用します。macOS/Linux の arm64・amd64 に対応します。
-
-## CLI で試す
-
-リポジトリルートで、同梱の課題を検証できます。
+## CLI 
 
 ```sh
+# validate <resource dir>: リソース定義を検証する
 go run ./cmd/resource-spec validate testdata/valid
+# inspect <resource dir>: リソース定義を検証して、読み込んだ結果をJSONで出力する
 go run ./cmd/resource-spec inspect testdata/valid
 ```
 
-`validate` は検証、`inspect` は検証済み定義の JSON 出力です。公開に使う `manifest`・`archive` は [公開手順](docs/publishing.md) を参照してください。`compare VERSION VERSION` は公開処理用に SemVer の大小を `-1`・`0`・`1` で返します。
+公開に使う `manifest`・`archive` は [公開手順](docs/publishing.md) を参照してください。`compare VERSION VERSION` は公開処理用に SemVer の大小を `-1`・`0`・`1` で返します。
 
 ## Go から使う
 
