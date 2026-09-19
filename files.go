@@ -8,6 +8,13 @@ import (
 	"strings"
 )
 
+func relative(p string) error {
+	if p == "." || !fs.ValidPath(p) || strings.ContainsAny(p, "\\:\x00") {
+		return fmt.Errorf("invalid relative path %q", p)
+	}
+	return nil
+}
+
 // readRegular checks each directory entry before opening it. fs.FS adapters must
 // faithfully expose entry types (and link counts when available), and remain stable.
 func readRegular(root fs.FS, name string) ([]byte, error) {

@@ -1,70 +1,16 @@
+// Package resource validates and eagerly reads locally available resource definitions.
 package resource
 
 import (
-	_ "crypto/sha256"
-	_ "embed"
-	"encoding/json"
 	"fmt"
 	"io/fs"
-	"strings"
-	"sync"
-
-	"github.com/distribution/reference"
-	"github.com/google/jsonschema-go/jsonschema"
-	"golang.org/x/mod/semver"
 )
 
-//go:embed schemas/resource.schema.json
-var schemaBytes []byte
-var compiledSchema = sync.OnceValues(func() (*jsonschema.Resolved, error) {
-	var schema jsonschema.Schema
-	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
-		return nil, err
-	}
-	return schema.Resolve(nil)
-})
-
-func decode(data []byte) (*Definition, error) {
-	schema, err := compiledSchema()
-	if err != nil {
-		return nil, err
-	}
-	var definition Definition
-	if err := decodeYAML(data, schema, &definition); err != nil {
-		return nil, err
-	}
-	if !semver.IsValid(definition.Resource.Version) {
-		return nil, fmt.Errorf("invalid resource.version: %q", definition.Resource.Version)
-	}
-	for _, workflow := range definition.Workflows {
-		for id, job := range workflow.Jobs {
-			if job.Visibility == "" {
-				job.Visibility = "public"
-				workflow.Jobs[id] = job
-			}
-		}
-	}
-	return &definition, nil
-}
-
-func relative(p string) error {
-	if p == "." || !fs.ValidPath(p) || strings.ContainsAny(p, "\\:\x00") {
-		return fmt.Errorf("invalid relative path %q", p)
-	}
-	return nil
-}
-
-func imageReference(s string) (reference.Named, error) {
-	r, err := reference.ParseNamed(s)
-	if err != nil {
-		return nil, fmt.Errorf("invalid fully qualified image %q: %w", s, err)
-	}
-	_, tag := r.(reference.Tagged)
-	_, digest := r.(reference.Digested)
-	if !tag && !digest {
-		return nil, fmt.Errorf("image requires tag or digest: %s", s)
-	}
-	return r, nil
+// Resource holds the validated definition and every referenced file, keyed by its resource-relative path.
+// It does not retain the input filesystem or perform subsequent I/O.
+type Resource struct {
+	Definition Definition
+	Files      map[string][]byte
 }
 
 // Validate performs the same definition and referenced-file checks as Read.
@@ -80,7 +26,7 @@ func Read(root fs.FS) (*Resource, error) {
 	if err != nil {
 		return nil, err
 	}
-	definition, err := decode(data)
+	definition, err := decodeDefinition(data)
 	if err != nil {
 		return nil, fmt.Errorf("resource.yaml: %w", err)
 	}
