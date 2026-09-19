@@ -20,11 +20,10 @@ sandbox-images: {}
 ```yaml
 sandbox-images:
   sandbox:
-    build:
-      context: images/sandbox
-      dockerfile: images/sandbox/Dockerfile
-      image: ghcr.io/your-org/sandbox
-      platforms: [linux/amd64, linux/arm64]
+    context: images/sandbox
+    dockerfile: images/sandbox/Dockerfile
+    image: ghcr.io/your-org/sandbox
+    platforms: [linux/amd64, linux/arm64]
 ```
 
 `context` と `dockerfile` はリポジトリルートからの相対パス。`context` は専用のディレクトリ、`image` は書き込み可能なタグなし GHCR repository とする。対応する platform は上記の2種類。

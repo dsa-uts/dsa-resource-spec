@@ -24,10 +24,6 @@ type ResourceEntry struct {
 }
 
 type ImageBuild struct {
-	Build Build `yaml:"build" json:"build"`
-}
-
-type Build struct {
 	Context    string   `yaml:"context" json:"context"`
 	Dockerfile string   `yaml:"dockerfile" json:"dockerfile"`
 	Image      string   `yaml:"image" json:"image"`
@@ -102,8 +98,7 @@ func validateResourceEntries(root fs.FS, entries []ResourceEntry) error {
 
 func validateBuilds(images map[string]ImageBuild) error {
 	repositories := map[string]bool{}
-	for _, image := range images {
-		build := image.Build
+	for _, build := range images {
 		if err := relative(build.Context); err != nil {
 			return err
 		}

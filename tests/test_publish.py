@@ -58,9 +58,9 @@ class PublicationTests(unittest.TestCase):
         calls = []
         definition = {"resource": {"version": "v1.0.0"}, "workflows": {
             "test": {"jobs": {"run": {"sandbox-image": "ghcr.io/example/image:release"}}}}}
-        manifest = {**self.manifest, "sandbox-images": {"default": {"build": {
+        manifest = {**self.manifest, "sandbox-images": {"default": {
             "image": "ghcr.io/example/image", "platforms": ["linux/amd64"],
-            "dockerfile": "sandbox/Dockerfile", "context": "sandbox"}}}}
+            "dockerfile": "sandbox/Dockerfile", "context": "sandbox"}}}
         def fake(*args):
             calls.append(args)
             if args == ("git", "status", "--porcelain"):
