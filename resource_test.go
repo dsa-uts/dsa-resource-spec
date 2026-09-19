@@ -58,6 +58,48 @@ func TestRead(t *testing.T) {
 	}
 }
 
+func TestJobVisibility(t *testing.T) {
+	for _, producer := range []string{"", "public", "private"} {
+		for _, consumer := range []string{"", "public", "private"} {
+			t.Run("producer="+producer+"/consumer="+consumer, func(t *testing.T) {
+				m := fixture(t)
+				// The first two visibility declarations belong to build and public.
+				parts := strings.SplitN(string(m["resource.yaml"].Data), "        visibility: public\n", 3)
+				if len(parts) != 3 {
+					t.Fatal("fixture must declare two public jobs")
+				}
+				data := parts[0]
+				for i, visibility := range []string{producer, consumer} {
+					if visibility != "" {
+						data += "        visibility: " + visibility + "\n"
+					}
+					data += parts[i+1]
+				}
+				m["resource.yaml"].Data = []byte(data)
+				r, err := resource.Read(m)
+				if producer == "private" && consumer != "private" {
+					if err == nil || !strings.Contains(err.Error(), "public Job depends on private Job") {
+						t.Fatalf("expected public/private dependency rejection, got %v", err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				jobs := r.Definition.Workflows["main"].Jobs
+				for id, want := range map[string]string{"build": producer, "public": consumer, "private": "private"} {
+					if want == "" {
+						want = "public"
+					}
+					if got := jobs[id].Visibility; got != want {
+						t.Errorf("job %s visibility = %q, want %q", id, got, want)
+					}
+				}
+			})
+		}
+	}
+}
+
 // Each fixture is a complete filesystem; never overlay it onto another case.
 func testFixtures(t *testing.T, kind string, validate func(fs.FS) error) {
 	t.Helper()

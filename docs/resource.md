@@ -86,7 +86,7 @@ Job は独立した sandbox で実行する。同じ Job の Step は作業領�
 | フィールド | 必須 | 内容 |
 | --- | --- | --- |
 | `name` | 任意 | 表示名。 |
-| `visibility` | 任意 | `public` または `private`。省略時 `private`(既定で非公開)。 |
+| `visibility` | 任意 | `public` または `private`。省略時 `public`(既定で公開)。 |
 | `depends` | 任意 | 先行して完了している必要がある Job ID 配列。省略時 `[]`。 |
 | `sandbox-image` | 必須 | タグまたは digest を含む完全なイメージ参照。 |
 | `working-directory` | 任意 | Step の作業ディレクトリ。`/workspace` またはその配下の絶対パス。省略時 `/workspace`。 |

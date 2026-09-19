@@ -36,6 +36,14 @@ func decode(data []byte) (*Definition, error) {
 	if !semver.IsValid(definition.Resource.Version) {
 		return nil, fmt.Errorf("invalid resource.version: %q", definition.Resource.Version)
 	}
+	for _, workflow := range definition.Workflows {
+		for id, job := range workflow.Jobs {
+			if job.Visibility == "" {
+				job.Visibility = "public"
+				workflow.Jobs[id] = job
+			}
+		}
+	}
 	return &definition, nil
 }
 

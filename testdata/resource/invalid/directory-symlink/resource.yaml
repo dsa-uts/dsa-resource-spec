@@ -39,6 +39,7 @@ workflows:
             name: program
             path: program
       private:
+        visibility: private
         sandbox-image: ghcr.io/example/default:latest
         limits:
           memory: 64MiB

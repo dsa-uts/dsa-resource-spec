@@ -89,6 +89,7 @@
                   "minLength": 1
                 },
                 "visibility": {
+                  "default": "public",
                   "enum": [
                     "public",
                     "private"
