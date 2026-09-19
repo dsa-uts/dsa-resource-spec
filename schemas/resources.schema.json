@@ -33,53 +33,44 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "build": {
-            "type": "object",
-            "properties": {
-              "context": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "minLength": 1,
-                    "pattern": "^[^\\\\:\\x00]+$"
-                  },
-                  {
-                    "const": "."
-                  }
-                ]
-              },
-              "dockerfile": {
+          "context": {
+            "anyOf": [
+              {
                 "type": "string",
                 "minLength": 1,
                 "pattern": "^[^\\\\:\\x00]+$"
               },
-              "image": {
-                "type": "string",
-                "pattern": "^ghcr.io/[a-z0-9._/-]+$"
-              },
-              "platforms": {
-                "type": "array",
-                "items": {
-                  "enum": [
-                    "linux/amd64",
-                    "linux/arm64"
-                  ]
-                },
-                "minItems": 1,
-                "uniqueItems": true
+              {
+                "const": "."
               }
+            ]
+          },
+          "dockerfile": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\\\:\\x00]+$"
+          },
+          "image": {
+            "type": "string",
+            "pattern": "^ghcr.io/[a-z0-9._/-]+$"
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "linux/amd64",
+                "linux/arm64"
+              ]
             },
-            "required": [
-              "context",
-              "dockerfile",
-              "image",
-              "platforms"
-            ],
-            "additionalProperties": false
+            "minItems": 1,
+            "uniqueItems": true
           }
         },
         "required": [
-          "build"
+          "context",
+          "dockerfile",
+          "image",
+          "platforms"
         ],
         "additionalProperties": false
       },

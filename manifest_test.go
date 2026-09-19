@@ -67,8 +67,14 @@ func TestManifestFixtures(t *testing.T) {
 
 func TestBuildConfiguration(t *testing.T) {
 	m := manifestFixture(t)
-	m["resources.yaml"].Data = []byte("resources: []\nsandbox-images:\n  default:\n    build:\n      context: sandbox\n      dockerfile: sandbox/Dockerfile\n      image: ghcr.io/example/default\n      platforms: [linux/amd64]\n")
-	if _, err := resource.ReadManifest(m); err != nil {
+	m["resources.yaml"].Data = []byte("resources: []\nsandbox-images:\n  default:\n    context: sandbox\n    dockerfile: sandbox/Dockerfile\n    image: ghcr.io/example/default\n    platforms: [linux/amd64]\n")
+	manifest, err := resource.ReadManifest(m)
+	if err != nil {
 		t.Fatal(err)
+	}
+	build := manifest.SandboxImages["default"]
+	if build.Context != "sandbox" || build.Dockerfile != "sandbox/Dockerfile" ||
+		build.Image != "ghcr.io/example/default" || strings.Join(build.Platforms, ",") != "linux/amd64" {
+		t.Fatalf("unexpected build configuration: %+v", build)
 	}
 }

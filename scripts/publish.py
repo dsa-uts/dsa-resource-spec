@@ -44,8 +44,7 @@ def pending_resources(manifest, releases):
 
 
 def build_images(images):
-    for key, image in sorted(images.items()):
-        build = image["build"]
+    for key, build in sorted(images.items()):
         run("docker", "buildx", "build", "--push", "--tag", build["image"] + ":latest",
             "--platform", ",".join(build["platforms"]), "--file", build["dockerfile"],
             "--cache-from", f"type=gha,scope={key}", "--cache-to", f"type=gha,mode=max,scope={key}",
