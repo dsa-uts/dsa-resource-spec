@@ -1,6 +1,6 @@
 # dsa-resource-spec
 
-課題定義 `resource.yaml` を検証・読み込み・ZIP 化する Go ライブラリと CLI。
+課題定義 `resource.yaml` を検証・読み込みする Go ライブラリと CLI。
 
 | やりたいこと | 読む文書 |
 | --- | --- |
@@ -32,7 +32,7 @@ go run ./cmd/resource-spec validate testdata/valid
 go run ./cmd/resource-spec inspect testdata/valid
 ```
 
-公開に使う `manifest`・`archive` は [公開手順](docs/publishing.md) を参照してください。`compare VERSION VERSION` は公開処理用に SemVer の大小を `-1`・`0`・`1` で返します。
+公開に使う `manifest` は [公開手順](docs/publishing.md) を参照してください。`compare VERSION VERSION` は公開処理用に SemVer の大小を `-1`・`0`・`1` で返します。
 
 ## Go から使う
 
@@ -53,8 +53,7 @@ func load() (*resource.Resource, error) {
 | --- | --- |
 | `Read(fs.FS) (*Resource, error)` | 定義を検証し、説明文・Preset・標準入力・期待出力の参照ファイルを一括で読む。入力 filesystem は保持しない。 |
 | `Validate(fs.FS) error` | `Read` と同じ検証だけを行う。 |
-| `Archive(fs.FS, io.Writer, map[string]string) error` | 解決済みイメージ参照を使って課題全体を ZIP 化する。 |
-| `ReadManifest(fs.FS) (*Manifest, error)` | 作者・CI 用の課題一覧とビルド入力を検証する。配布 ZIP の読み込みには不要。 |
+| `ReadManifest(fs.FS) (*Manifest, error)` | 作者・CI 用の課題一覧とビルド設定を検証する。配布 ZIP の読み込みには不要。 |
 
 取得・認証・展開・採点・実行・公開済みバージョン管理は呼び出し側で行います。
 

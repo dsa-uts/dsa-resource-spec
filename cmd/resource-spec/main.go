@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"golang.org/x/mod/semver"
 
@@ -29,11 +28,9 @@ func run(args []string, out io.Writer) error {
 		return err
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("usage: resource-spec <validate|inspect|manifest|archive|compare> [flags] RESOURCE_DIRECTORY")
+		return fmt.Errorf("usage: resource-spec <validate|inspect|manifest|compare> RESOURCE_DIRECTORY")
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
-	output := flags.String("output", "", "ZIP destination (outside the resource directory)")
-	images := flags.String("images", "", "JSON map of original image references to resolved digest references")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -56,63 +53,7 @@ func run(args []string, out io.Writer) error {
 			return err
 		}
 		return json.NewEncoder(out).Encode(r.Definition)
-	case "archive":
-		return writeArchive(flags.Arg(0), *output, *images)
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}
-}
-
-func writeArchive(sourceDirectory, output, images string) error {
-	root := os.DirFS(sourceDirectory)
-	if output == "" {
-		return fmt.Errorf("--output is required")
-	}
-	source, err := filepath.EvalSymlinks(sourceDirectory)
-	if err != nil {
-		return err
-	}
-	source, err = filepath.Abs(source)
-	if err != nil {
-		return err
-	}
-	parent, err := filepath.EvalSymlinks(filepath.Dir(output))
-	if err != nil {
-		return err
-	}
-	parent, err = filepath.Abs(parent)
-	if err != nil {
-		return err
-	}
-	rel, err := filepath.Rel(source, parent)
-	if err != nil {
-		return err
-	}
-	if rel == "." || filepath.IsLocal(rel) {
-		return fmt.Errorf("output must be outside resource directory")
-	}
-	resolved := map[string]string{}
-	if images != "" {
-		b, err := os.ReadFile(images)
-		if err != nil {
-			return err
-		}
-		if err = json.Unmarshal(b, &resolved); err != nil {
-			return err
-		}
-	}
-	file, err := os.CreateTemp(parent, ".resource-*.zip")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(file.Name())
-	err = resource.Archive(root, file, resolved)
-	closeErr := file.Close()
-	if err != nil {
-		return err
-	}
-	if closeErr != nil {
-		return closeErr
-	}
-	return os.Rename(file.Name(), output)
 }

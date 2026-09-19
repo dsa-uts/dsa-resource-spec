@@ -3,12 +3,9 @@ package resource
 import (
 	"bytes"
 	_ "embed"
-	"errors"
 	"fmt"
 	"io/fs"
 	"path"
-	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/distribution/reference"
@@ -47,9 +44,7 @@ var manifestSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
 	return c.Compile("manifest.json")
 })
 
-var pinnedBase = regexp.MustCompile(`^FROM [a-z0-9./_-]+:[A-Za-z0-9_.-]+@sha256:[a-f0-9]{64}$`)
-
-// ReadManifest validates the author index, resources and local image build inputs.
+// ReadManifest validates the author index, resources and image build configuration.
 // It never builds images, contacts registries, or checks release history.
 func ReadManifest(root fs.FS) (*Manifest, error) {
 	data, err := readRegular(root, "resources.yaml")
@@ -67,7 +62,7 @@ func ReadManifest(root fs.FS) (*Manifest, error) {
 	if err := validateResourceEntries(root, manifest.Resources); err != nil {
 		return nil, err
 	}
-	if err := validateBuilds(root, manifest.SandboxImages); err != nil {
+	if err := validateBuilds(manifest.SandboxImages); err != nil {
 		return nil, err
 	}
 	return &manifest, nil
@@ -105,11 +100,14 @@ func validateResourceEntries(root fs.FS, entries []ResourceEntry) error {
 	return nil
 }
 
-func validateBuilds(root fs.FS, images map[string]ImageBuild) error {
+func validateBuilds(images map[string]ImageBuild) error {
 	repositories := map[string]bool{}
-	for id, image := range images {
+	for _, image := range images {
 		build := image.Build
 		if err := relative(build.Context); err != nil {
+			return err
+		}
+		if err := relative(build.Dockerfile); err != nil {
 			return err
 		}
 		repository, err := reference.ParseNamed(build.Image)
@@ -120,84 +118,6 @@ func validateBuilds(root fs.FS, images map[string]ImageBuild) error {
 			return fmt.Errorf("duplicate build repository: %s", build.Image)
 		}
 		repositories[build.Image] = true
-		if err := validateBuildContext(root, build.Context); err != nil {
-			return fmt.Errorf("image %s: %w", id, err)
-		}
-		if err := validateDockerfile(root, build.Dockerfile); err != nil {
-			return fmt.Errorf("image %s: %w", id, err)
-		}
-	}
-	return nil
-}
-
-func validateBuildContext(root fs.FS, context string) error {
-	// Check directory components without following symlinks, including empty contexts.
-	parent := "."
-	for _, part := range strings.Split(context, "/") {
-		entries, err := fs.ReadDir(root, parent)
-		if err != nil {
-			return err
-		}
-		found := false
-		for _, entry := range entries {
-			if entry.Name() == part {
-				found = entry.IsDir() && entry.Type()&fs.ModeSymlink == 0
-			}
-		}
-		if !found {
-			return fmt.Errorf("invalid build context: %s", context)
-		}
-		parent = path.Join(parent, part)
-	}
-	err := fs.WalkDir(root, context, func(name string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.Name() == ".git" || entry.Name() == "resource.yaml" || entry.Name() == "resources.yaml" {
-			return fmt.Errorf("build context must exclude .git and manifests")
-		}
-		if entry.Type()&fs.ModeSymlink != 0 {
-			return fmt.Errorf("build symlink forbidden: %s", name)
-		}
-		if !entry.IsDir() {
-			_, err = readRegular(root, name)
-		}
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func validateDockerfile(root fs.FS, name string) error {
-	dockerfile, err := readRegular(root, name)
-	if err != nil {
-		return err
-	}
-	bases := 0
-	for _, line := range strings.Split(string(dockerfile), "\n") {
-		line = strings.TrimSpace(line)
-		upper := strings.ToUpper(line)
-		if strings.HasPrefix(strings.ToLower(line), "# syntax=") {
-			return fmt.Errorf("external Dockerfile frontends unsupported")
-		}
-		if strings.HasPrefix(upper, "FROM ") {
-			bases++
-			if !pinnedBase.MatchString(line) {
-				return fmt.Errorf("Dockerfile requires tag+digest pinned FROM")
-			}
-		}
-		if strings.HasPrefix(upper, "ADD ") {
-			return fmt.Errorf("ADD unsupported; use COPY")
-		}
-	}
-	if bases != 1 {
-		return fmt.Errorf("Dockerfile requires one pinned FROM")
-	}
-	ignore := name + ".dockerignore"
-	if _, err := readRegular(root, ignore); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return err
 	}
 	return nil
 }
