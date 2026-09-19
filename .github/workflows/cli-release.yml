@@ -1,0 +1,64 @@
+name: CLI Release
+on:
+  push:
+    tags: ['cli/v*']
+permissions:
+  contents: read
+concurrency:
+  group: cli-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+      - name: Validate release version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#cli/}"
+          if [[ ! "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Expected cli/vMAJOR.MINOR.PATCH with optional SemVer suffixes" >&2
+            exit 1
+          fi
+          go run ./cmd/resource-spec compare "$version" "$version"
+      - name: Test
+        run: |
+          go vet ./...
+          go test -race ./...
+      - name: Build Linux binaries
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+        run: |
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            GOARCH="$arch" go build -trimpath -ldflags='-s -w' \
+              -o "dist/resource-spec-linux-$arch" ./cmd/resource-spec
+          done
+          dist/resource-spec-linux-amd64 validate testdata/valid
+          cd dist
+          sha256sum resource-spec-linux-* > SHA256SUMS
+      - name: Publish CLI release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#cli/}"
+          prerelease=false
+          if [[ "${version%%+*}" == *-* ]]; then
+            prerelease=true
+          fi
+          gh release create "$RELEASE_TAG" dist/resource-spec-linux-* dist/SHA256SUMS \
+            --verify-tag --draft --title "resource-spec $version" \
+            --prerelease="$prerelease" \
+            --notes "Linux amd64 / arm64. Source: $GITHUB_SHA."
+          gh release edit "$RELEASE_TAG" --draft=false --latest=false
