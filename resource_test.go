@@ -14,13 +14,19 @@ import (
 
 func fixture(t *testing.T) fstest.MapFS {
 	t.Helper()
+	return copyFixture(t, "testdata/resource/valid/basic")
+}
+
+// copyFixture is only for unit tests that mutate files in memory.
+func copyFixture(t *testing.T, dir string) fstest.MapFS {
+	t.Helper()
 	m := fstest.MapFS{}
-	err := fs.WalkDir(os.DirFS("testdata/valid"), ".", func(p string, e fs.DirEntry, err error) error {
+	err := fs.WalkDir(os.DirFS(dir), ".", func(p string, e fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if !e.IsDir() {
-			b, err := os.ReadFile(filepath.Join("testdata/valid", p))
+			b, err := os.ReadFile(filepath.Join(dir, p))
 			if err != nil {
 				return err
 			}
@@ -52,27 +58,37 @@ func TestRead(t *testing.T) {
 	}
 }
 
+// Each fixture is a complete filesystem; never overlay it onto another case.
+func testFixtures(t *testing.T, kind string, validate func(fs.FS) error) {
+	t.Helper()
+	for _, outcome := range []string{"valid", "invalid"} {
+		base := filepath.Join("testdata", kind, outcome)
+		entries, err := os.ReadDir(base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(entries) == 0 {
+			t.Fatalf("no fixtures in %s", base)
+		}
+		for _, entry := range entries {
+			t.Run(outcome+"/"+entry.Name(), func(t *testing.T) {
+				if !entry.IsDir() {
+					t.Fatal("fixture must be a directory")
+				}
+				err := validate(os.DirFS(filepath.Join(base, entry.Name())))
+				if outcome == "valid" && err != nil {
+					t.Fatal(err)
+				}
+				if outcome == "invalid" && err == nil {
+					t.Fatal("invalid fixture accepted")
+				}
+			})
+		}
+	}
+}
+
 func TestFixtures(t *testing.T) {
-	entries, err := os.ReadDir("testdata/invalid")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		t.Run(e.Name(), func(t *testing.T) {
-			if e.Name() == "id-mismatch" || e.Name() == "duplicate-yaml-key" {
-				t.Skip("manifest-only constraint; covered by publisher validation")
-			}
-			m := fixture(t)
-			b, err := os.ReadFile(filepath.Join("testdata/invalid", e.Name(), "sample/resource.yaml"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			m["resource.yaml"] = &fstest.MapFile{Data: b}
-			if err := resource.Validate(m); err == nil {
-				t.Fatal("invalid definition accepted")
-			}
-		})
-	}
+	testFixtures(t, "resource", resource.Validate)
 }
 
 func TestDefinitionRejections(t *testing.T) {
@@ -97,33 +113,30 @@ func TestDefinitionRejections(t *testing.T) {
 	}
 }
 
-func TestLinks(t *testing.T) {
-	for _, kind := range []string{"symlink", "hardlink", "directory-symlink"} {
-		t.Run(kind, func(t *testing.T) {
-			dir := t.TempDir()
-			m := fixture(t)
-			for p, f := range m {
-				if err := os.WriteFile(filepath.Join(dir, p), f.Data, 0644); err != nil {
-					t.Fatal(err)
-				}
-			}
-			description := filepath.Join(dir, "description.md")
-			if err := os.Remove(description); err != nil {
-				t.Fatal(err)
-			}
-			var err error
-			if kind == "symlink" {
-				err = os.Symlink(filepath.Join(dir, "expected.txt"), description)
-			} else if kind == "hardlink" {
-				err = os.Link(filepath.Join(dir, "expected.txt"), description)
-			} else {
-				err = os.Symlink(t.TempDir(), description)
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := resource.Validate(os.DirFS(dir)); err == nil {
-				t.Fatal("link accepted")
+func TestHardlink(t *testing.T) {
+	// Git does not preserve hardlinks, so this case needs a temporary filesystem.
+	dir := t.TempDir()
+	if err := os.CopyFS(dir, os.DirFS("testdata/resource/valid/basic")); err != nil {
+		t.Fatal(err)
+	}
+	description := filepath.Join(dir, "description.md")
+	if err := os.Remove(description); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(filepath.Join(dir, "expected.txt"), description); err != nil {
+		t.Fatal(err)
+	}
+	if err := resource.Validate(os.DirFS(dir)); err == nil || !strings.Contains(err.Error(), "hardlink is forbidden") {
+		t.Fatalf("expected hardlink rejection, got %v", err)
+	}
+}
+
+func TestSymlinkFixtures(t *testing.T) {
+	for _, name := range []string{"symlink", "directory-symlink", "definition-symlink"} {
+		t.Run(name, func(t *testing.T) {
+			err := resource.Validate(os.DirFS(filepath.Join("testdata/resource/invalid", name)))
+			if err == nil || !strings.Contains(err.Error(), "symlink is forbidden") {
+				t.Fatalf("expected symlink rejection, got %v", err)
 			}
 		})
 	}

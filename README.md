@@ -27,9 +27,9 @@ Linux 用バイナリ（amd64・arm64）の取得・公開は [CLI のリリー�
 
 ```sh
 # validate <resource dir>: リソース定義を検証する
-go run ./cmd/resource-spec validate testdata/valid
+go run ./cmd/resource-spec validate testdata/resource/valid/basic
 # inspect <resource dir>: リソース定義を検証して、読み込んだ結果をJSONで出力する
-go run ./cmd/resource-spec inspect testdata/valid
+go run ./cmd/resource-spec inspect testdata/resource/valid/basic
 ```
 
 公開に使う `manifest` は [公開手順](docs/publishing.md) を参照してください。`compare VERSION VERSION` は公開処理用に SemVer の大小を `-1`・`0`・`1` で返します。
@@ -43,7 +43,7 @@ import (
 )
 
 func load() (*resource.Resource, error) {
-    return resource.Read(os.DirFS("testdata/valid"))
+    return resource.Read(os.DirFS("testdata/resource/valid/basic"))
 }
 ```
 

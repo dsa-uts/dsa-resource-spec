@@ -13,7 +13,7 @@ resources:
 sandbox-images: {}
 ```
 
-一覧の `id` と定義の `resource.id` は一致させる。[testdata/valid](../testdata/valid) に素材を含む例があるが、イメージ名はプレースホルダーなので取得可能な参照に置き換える。
+一覧の `id` と定義の `resource.id` は一致させる。[testdata/resource/valid/basic](../testdata/resource/valid/basic) に素材を含む例があるが、イメージ名はプレースホルダーなので取得可能な参照に置き換える。
 
 このリポジトリでイメージもビルドする場合は `sandbox-images` に追加する。
 

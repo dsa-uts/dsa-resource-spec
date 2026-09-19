@@ -1,6 +1,7 @@
 package resource_test
 
 import (
+	"io/fs"
 	"os"
 	"strings"
 	"testing"
@@ -11,16 +12,11 @@ import (
 
 func manifestFixture(t *testing.T) fstest.MapFS {
 	t.Helper()
-	m := fstest.MapFS{}
-	for p, f := range fixture(t) {
-		m["sample/"+p] = f
-	}
-	m["resources.yaml"] = &fstest.MapFile{Data: []byte("resources:\n- id: sample\n  path: sample/resource.yaml\nsandbox-images: {}\n")}
-	return m
+	return copyFixture(t, "testdata/manifest/valid/basic")
 }
 
 func TestManifest(t *testing.T) {
-	if _, err := resource.ReadManifest(manifestFixture(t)); err != nil {
+	if _, err := resource.ReadManifest(os.DirFS("testdata/manifest/valid/basic")); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -46,23 +42,10 @@ func TestManifestRejections(t *testing.T) {
 }
 
 func TestManifestFixtures(t *testing.T) {
-	for _, name := range []string{"id-mismatch", "duplicate-yaml-key"} {
-		t.Run(name, func(t *testing.T) {
-			m := manifestFixture(t)
-			file := "sample/resource.yaml"
-			if name == "duplicate-yaml-key" {
-				file = "resources.yaml"
-			}
-			b, err := os.ReadFile("testdata/invalid/" + name + "/" + file)
-			if err != nil {
-				t.Fatal(err)
-			}
-			m[file] = &fstest.MapFile{Data: b}
-			if _, err := resource.ReadManifest(m); err == nil {
-				t.Fatal("invalid fixture accepted")
-			}
-		})
-	}
+	testFixtures(t, "manifest", func(root fs.FS) error {
+		_, err := resource.ReadManifest(root)
+		return err
+	})
 }
 
 func TestBuildConfiguration(t *testing.T) {
