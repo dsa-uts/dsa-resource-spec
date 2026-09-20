@@ -261,6 +261,38 @@ func TestExplicitLimitsAndInlineInput(t *testing.T) {
 	}
 }
 
+func TestCPULimits(t *testing.T) {
+	for _, value := range []string{"1", "2", "8", "0", "-1", "1.5"} {
+		t.Run(value, func(t *testing.T) {
+			dir := fixture(t)
+			replace(t, dir, "sample/resource.yaml", "memory: 64MiB", "memory: 64MiB\n          cpu: "+value)
+			manifest, err := resource.LoadManifest(dir)
+			if value == "0" || value == "-1" || value == "1.5" {
+				if err == nil {
+					t.Fatal("invalid CPU limit accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := &manifest.Resources[0]
+			encodedCPU, err := json.Marshal(r.Workflows["main"].Jobs["public"].Limits.CPU)
+			if err != nil || string(encodedCPU) != value {
+				t.Fatalf("CPU = %s, want %s; error: %v", encodedCPU, value, err)
+			}
+			data, err := json.Marshal(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			restored, err := resource.DecodeResource(bytes.NewReader(data))
+			if err != nil || !reflect.DeepEqual(r, restored) {
+				t.Fatalf("CPU limit JSON round trip: %v", err)
+			}
+		})
+	}
+}
+
 func TestDecodeRejections(t *testing.T) {
 	original, err := json.Marshal(load(t, fixture(t)))
 	if err != nil {
@@ -279,6 +311,9 @@ func TestDecodeRejections(t *testing.T) {
 		"timeout overflow":     func(v map[string]any) { jsonStep(v)["timeout"] = 1e30 },
 		"memory":               func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["memory"] = -1 },
 		"missing limits":       func(v map[string]any) { delete(jsonJob(v), "limits") },
+		"zero CPU":             func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = 0 },
+		"negative CPU":         func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = -1 },
+		"fractional CPU":       func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = 1.5 },
 		"exit code":            func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = 256 },
 		"negative exit code":   func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = -1 },
 		"match": func(v map[string]any) {

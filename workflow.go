@@ -62,7 +62,7 @@ func validateJob(id string, job Job, jobs map[string]Job) error {
 		return fmt.Errorf("invalid job visibility")
 	}
 	limits := job.Limits
-	if limits.CPU != 1 || limits.PIDs < 1 || limits.Memory <= 0 || limits.StdoutSize <= 0 || limits.StderrSize <= 0 || limits.WorkspaceSize <= 0 || limits.ArtifactSize <= 0 {
+	if limits.CPU < 1 || limits.PIDs < 1 || limits.Memory <= 0 || limits.StdoutSize <= 0 || limits.StderrSize <= 0 || limits.WorkspaceSize <= 0 || limits.ArtifactSize <= 0 {
 		return fmt.Errorf("invalid job limits")
 	}
 	if len(job.Steps) == 0 {
