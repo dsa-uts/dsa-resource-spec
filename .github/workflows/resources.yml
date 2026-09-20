@@ -23,16 +23,16 @@ jobs:
           go build -o "$RUNNER_TEMP/resource-bin/resource-spec" ./cmd/resource-spec
           echo "$RUNNER_TEMP/resource-bin" >> "$GITHUB_PATH"
       - run: resource-spec manifest .
-      - run: python3 -B -m unittest discover -s tests -p 'test_publish.py' -v
-  publish:
+      - run: python3 -B -m unittest discover -s tests -p 'test_build_images.py' -v
+  build-images:
     needs: validate
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     concurrency:
-      group: resource-release-main
+      group: resource-images-main
       cancel-in-progress: false
     permissions:
-      contents: write
+      contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
@@ -57,8 +57,5 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: crazy-max/ghaction-github-runtime@v3
-      - name: Build images and publish immutable resource ZIPs
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IMMUTABLE_RELEASES_ENABLED: ${{ vars.IMMUTABLE_RELEASES_ENABLED }}
-        run: python3 scripts/publish.py
+      - name: Build and push sandbox images
+        run: python3 scripts/build_images.py

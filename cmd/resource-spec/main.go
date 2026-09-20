@@ -7,8 +7,6 @@ import (
 	"io"
 	"os"
 
-	"golang.org/x/mod/semver"
-
 	resource "github.com/dsa-uts/dsa-resource-spec"
 )
 
@@ -20,15 +18,8 @@ func main() {
 }
 
 func run(args []string, out io.Writer) error {
-	if len(args) == 3 && args[0] == "compare" {
-		if !semver.IsValid(args[1]) || !semver.IsValid(args[2]) {
-			return fmt.Errorf("invalid version")
-		}
-		_, err := fmt.Fprintln(out, semver.Compare(args[1], args[2]))
-		return err
-	}
 	if len(args) == 0 {
-		return fmt.Errorf("usage: resource-spec <validate|inspect|manifest|compare> RESOURCE_DIRECTORY")
+		return fmt.Errorf("usage: resource-spec <validate|inspect|manifest> RESOURCE_DIRECTORY")
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	if err := flags.Parse(args[1:]); err != nil {

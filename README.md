@@ -5,7 +5,7 @@
 | やりたいこと | 読む文書 |
 | --- | --- |
 | 課題の定義を書く | [Resource 仕様](docs/resource.md) |
-| 課題を登録して公開する | [公開手順](docs/publishing.md) |
+| 課題を登録してイメージをビルドする | [登録・ビルド手順](docs/publishing.md) |
 | Backend・Judge を実装する | [実行規則](docs/runtime.md) |
 | 設計の理由を知る | [設計](docs/design.md) |
 
@@ -30,7 +30,7 @@ go run ./cmd/resource-spec validate testdata/resource/valid/basic
 go run ./cmd/resource-spec inspect testdata/resource/valid/basic
 ```
 
-公開に使う `manifest` は [公開手順](docs/publishing.md) を参照してください。`compare VERSION VERSION` は公開処理用に SemVer の大小を `-1`・`0`・`1` で返します。
+課題一覧の検証に使う `manifest` は [登録・ビルド手順](docs/publishing.md) を参照してください。
 
 ## Go から使う
 

@@ -10,7 +10,7 @@ import (
 
 func TestCommands(t *testing.T) {
 	var out bytes.Buffer
-	for _, args := range [][]string{{"validate", "../../testdata/resource/valid/basic"}, {"inspect", "../../testdata/resource/valid/basic"}, {"manifest", "../../testdata/manifest/valid/basic"}, {"compare", "v1.10.0", "v1.2.0"}} {
+	for _, args := range [][]string{{"validate", "../../testdata/resource/valid/basic"}, {"inspect", "../../testdata/resource/valid/basic"}, {"manifest", "../../testdata/manifest/valid/basic"}} {
 		if err := run(args, &out); err != nil {
 			t.Fatal(err)
 		}

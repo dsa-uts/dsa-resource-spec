@@ -1,6 +1,6 @@
-# 課題の公開
+# 課題の登録とイメージのビルド
 
-このリポジトリで課題の登録、イメージのビルド、GitHub Release への公開を行う。初期状態の `resources.yaml` は空で、公開対象はない。
+このリポジトリで課題の登録・検証と、GHCR へのイメージのビルド・push を行う。初期状態の `resources.yaml` は空で、登録された課題やビルド対象のイメージはない。課題の配布方法は未定。
 
 ## 1. 課題を登録する
 
@@ -40,18 +40,8 @@ go run ./cmd/resource-spec manifest .
 
 課題一覧、各課題の定義・参照素材、イメージのビルド設定を検証し、結果を JSON で出力する。
 
-## 3. 公開を設定する
+## 3. イメージのビルドを設定する
 
-リポジトリで release immutability を有効にし、Actions variable `IMMUTABLE_RELEASES_ENABLED=true` を設定する。この変数は設定済みという宣言であり、公開スクリプトが実際の設定を変更・照会するものではない。GHCR の可視性と利用側の pull 権限も設定する。
+GHCR の可視性と利用側の pull 権限を設定する。
 
-## 公開と再実行
-
-[Resources workflow](../.github/workflows/resources.yml) はチェックアウトしたコードから CLI をビルドする。main への反映後、次の順に処理する。
-
-1. イメージをキャッシュ付きでビルドし、`latest` を更新する。
-2. 未公開課題のすべてのタグ参照を同じ repository の sha256 digest に固定する。既存 digest は保持する。未解決タグ、別 repository への置換、不正な digest は拒否する。
-3. `<id>/<version>`（例: `sample/v1.0.0`）の draft Release に対象課題の ZIP を添付し、公開する。
-
-公開する変更には、Release 一覧にある最新版より大きい `resource.version` を手動で指定する。版の飛び越しは可能。同一バージョンは再公開せず、古い版や build metadata だけを変えた版は拒否する。同じ版のまま編集しても公開済みの内容は変わらない。公開対象が空なら何も公開しない。
-
-Release 作成前に main が進んでいたら中止する。失敗時に残った draft やタグは上書きしないため、内容と commit を確認して手動で対処する。公開済み Release・イメージの削除処理は設けない。
+[Resources workflow](../.github/workflows/resources.yml) はチェックアウトしたコードから CLI をビルドし、`manifest` で課題一覧を検証する。main への反映後、または main に対する手動実行で、`sandbox-images` のイメージをキャッシュ付きでビルドして GHCR に push し、`latest` を更新する。ビルド対象が空ならイメージのビルド・push は行わない。
