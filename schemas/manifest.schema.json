@@ -53,7 +53,7 @@
           },
           "image": {
             "type": "string",
-            "pattern": "^ghcr.io/[a-z0-9._/-]+$"
+            "minLength": 1
           },
           "platforms": {
             "type": "array",

@@ -42,7 +42,7 @@ func duration(value string) (time.Duration, error) {
 func resolveWorkflow(root *os.Root, dir string, raw rawWorkflow) (Workflow, error) {
 	result := Workflow{Name: raw.Name, Jobs: make(map[string]Job)}
 	if raw.DescriptionPath != "" {
-		content, _, err := sourceMaterial(root, dir, raw.DescriptionPath)
+		content, _, err := readMaterial(root, dir+"/"+raw.DescriptionPath)
 		if err != nil {
 			return result, err
 		}
@@ -51,7 +51,7 @@ func resolveWorkflow(root *os.Root, dir string, raw rawWorkflow) (Workflow, erro
 	if raw.Presets != nil {
 		result.Presets = &Presets{Files: make([]Preset, 0, len(raw.Presets.Files))}
 		for _, preset := range raw.Presets.Files {
-			content, executable, err := sourceMaterial(root, dir, preset.Source)
+			content, executable, err := readMaterial(root, dir+"/"+preset.Source)
 			if err != nil {
 				return result, err
 			}
@@ -162,6 +162,6 @@ func resolveStream(root *os.Root, dir string, stream *rawStream) ([]byte, error)
 	if stream.Value != nil {
 		return []byte(*stream.Value), nil
 	}
-	content, _, err := sourceMaterial(root, dir, stream.Path)
+	content, _, err := readMaterial(root, dir+"/"+stream.Path)
 	return content, err
 }

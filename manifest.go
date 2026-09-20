@@ -7,7 +7,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/distribution/reference"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -60,7 +59,7 @@ func LoadManifest(dir string) (*Manifest, error) {
 	for id, build := range input.SandboxImages {
 		images[id] = ImageBuild(build)
 	}
-	if err := validateBuilds(images); err != nil {
+	if err := validateBuilds(root, images); err != nil {
 		return nil, err
 	}
 	manifest := &Manifest{Resources: make([]Resource, 0, len(input.Resources)), SandboxImages: images}
@@ -70,7 +69,7 @@ func LoadManifest(dir string) (*Manifest, error) {
 			return nil, fmt.Errorf("duplicate resource ID/path")
 		}
 		ids[entry.ID], paths[entry.Path] = true, true
-		if err := validateCleanRelativePath(entry.Path); err != nil {
+		if err := validateSourcePath(entry.Path); err != nil {
 			return nil, err
 		}
 		resource, err := loadResource(root, entry.Path)
@@ -85,23 +84,28 @@ func LoadManifest(dir string) (*Manifest, error) {
 	return manifest, nil
 }
 
-func validateBuilds(images map[string]ImageBuild) error {
-	repositories := map[string]bool{}
-	for _, build := range images {
-		if err := validateCleanRelativePath(build.Context); build.Context != "." && err != nil {
-			return err
+func validateBuilds(root *os.Root, images map[string]ImageBuild) error {
+	for id, build := range images {
+		if err := validateSourcePath(build.Context); err != nil {
+			return fmt.Errorf("sandbox-images.%s.context: %w", id, err)
 		}
-		if err := validateCleanRelativePath(build.Dockerfile); err != nil {
-			return err
+		if err := validateSourcePath(build.Dockerfile); err != nil {
+			return fmt.Errorf("sandbox-images.%s.dockerfile: %w", id, err)
 		}
-		repository, err := reference.ParseNamed(build.Image)
-		if err != nil || !reference.IsNameOnly(repository) || reference.Domain(repository) != "ghcr.io" {
-			return fmt.Errorf("invalid GHCR build repository: %s", build.Image)
+		context, err := root.Stat(build.Context)
+		if err != nil {
+			return fmt.Errorf("sandbox-images.%s.context: %w", id, err)
 		}
-		if repositories[build.Image] {
-			return fmt.Errorf("duplicate build repository: %s", build.Image)
+		if !context.IsDir() {
+			return fmt.Errorf("sandbox-images.%s.context: %q: not a directory", id, build.Context)
 		}
-		repositories[build.Image] = true
+		dockerfile, err := root.Stat(build.Dockerfile)
+		if err != nil {
+			return fmt.Errorf("sandbox-images.%s.dockerfile: %w", id, err)
+		}
+		if !dockerfile.Mode().IsRegular() {
+			return fmt.Errorf("sandbox-images.%s.dockerfile: %q: not a regular file", id, build.Dockerfile)
+		}
 	}
 	return nil
 }
