@@ -25,17 +25,11 @@ check
 
 ```sh
 # manifest.yaml と登録された全課題を検証する
-resource-spec validate <manifest-dir>
-# 素材を解決したマニフェスト全体を JSON 出力する
-resource-spec manifest <manifest-dir>
+go run ./cmd/source-spec validate <manifest-dir>
+# マニフェストと登録された全課題のメタデータを JSON 出力する
+go run ./cmd/resource-spec catalog <manifest-dir>
 # 指定した課題の解決済み JSON を出力する
-resource-spec inspect <manifest-dir> <resource-id>
-```
-
-チェックアウトからは `go run ./cmd/resource-spec` でも実行できます。
-
-```sh
-go run ./cmd/resource-spec inspect testdata/resource/valid/basic sample
+go run ./cmd/resource-spec show <manifest-dir> <resource-id>
 ```
 
 ## Go から使う

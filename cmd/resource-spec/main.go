@@ -19,9 +19,9 @@ func main() {
 
 func run(args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: resource-spec <validate|manifest> MANIFEST_DIRECTORY | inspect MANIFEST_DIRECTORY RESOURCE_ID")
+		return fmt.Errorf("usage: resource-spec <validate|catalog> MANIFEST_DIRECTORY | show MANIFEST_DIRECTORY RESOURCE_ID")
 	}
-	if args[0] != "validate" && args[0] != "manifest" && args[0] != "inspect" {
+	if args[0] != "validate" && args[0] != "catalog" && args[0] != "show" {
 		return fmt.Errorf("unknown command %q", args[0])
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
@@ -29,7 +29,7 @@ func run(args []string, out io.Writer) error {
 		return err
 	}
 	count := 1
-	if args[0] == "inspect" {
+	if args[0] == "show" {
 		count = 2
 	}
 	if flags.NArg() != count {
@@ -42,8 +42,18 @@ func run(args []string, out io.Writer) error {
 	switch args[0] {
 	case "validate":
 		return nil
-	case "manifest":
-		return json.NewEncoder(out).Encode(manifest)
+	case "catalog":
+		catalog := struct {
+			Resources     []resource.Metadata            `json:"resources"`
+			SandboxImages map[string]resource.ImageBuild `json:"sandbox-images"`
+		}{
+			Resources:     make([]resource.Metadata, 0, len(manifest.Resources)),
+			SandboxImages: manifest.SandboxImages,
+		}
+		for _, item := range manifest.Resources {
+			catalog.Resources = append(catalog.Resources, item.Metadata)
+		}
+		return json.NewEncoder(out).Encode(catalog)
 	default:
 		for _, item := range manifest.Resources {
 			if item.Metadata.ID == flags.Arg(1) {

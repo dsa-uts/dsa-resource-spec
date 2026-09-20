@@ -1,6 +1,6 @@
 # 課題の登録とイメージのビルド
 
-このリポジトリで課題の登録・検証と、GHCR へのイメージのビルド・push を行う。初期状態の `manifest.yaml` は空で、登録された課題やビルド対象のイメージはない。解決済み課題は `inspect` で JSON に出力できる。ホスティング先や自動公開の運用は未定。
+このリポジトリで課題の登録・検証と、GHCR へのイメージのビルド・push を行う。初期状態の `manifest.yaml` は空で、登録された課題やビルド対象のイメージはない。解決済み課題は `show` で JSON に出力できる。ホスティング先や自動公開の運用は未定。
 
 ## 1. 課題を登録する
 
@@ -42,10 +42,10 @@ go run ./cmd/resource-spec validate .
 
 課題一覧、各課題の定義・参照素材、イメージのビルド設定を検証する。
 
-解決済みのマニフェスト全体は `resource-spec manifest .`、一つの課題は次で出力する。
+マニフェストと全課題のメタデータは `resource-spec catalog .`、一つの課題は次で出力する。
 
 ```sh
-resource-spec inspect . sample > sample.json
+resource-spec show . sample > sample.json
 ```
 
 `sample.json` は `DecodeResource` にそのまま渡せる。元の素材ファイルを添付する必要はない。[JSON の契約](resolved-resource.md) を参照。
