@@ -6,7 +6,7 @@
 
 ## 最小例
 
-素材を含む例は [testdata/resource/valid/basic/sample/resource.yaml](../testdata/resource/valid/basic/sample/resource.yaml) を参照。
+素材を含む例は [testdata/cli/valid/basic/input/sample/resource.yaml](../testdata/cli/valid/basic/input/sample/resource.yaml) を参照。
 
 ```yaml
 resource:

@@ -1,0 +1,4 @@
+resources:
+  - id: sample
+    path: missing
+sandbox-images: {}

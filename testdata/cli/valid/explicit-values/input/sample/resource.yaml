@@ -1,0 +1,79 @@
+resource:
+  version: "v1.0.0"
+  id: sample
+  name: Test resource
+workflows:
+  main:
+    jobs:
+      build:
+        sandbox-image: ghcr.io/example/default:latest
+        limits:
+          memory: 1GiB
+          cpu: 8
+          stdout-size: 20MiB
+          stderr-size: 21MiB
+          workspace-size: 2GiB
+          artifact-size: 2KiB
+          pids: 256
+          step-timeout: 1s
+        steps:
+        - run: touch program
+          compile: true
+        visibility: public
+        artifacts:
+          outputs:
+          - name: program
+            path: program
+      public:
+        sandbox-image: ghcr.io/example/default:latest
+        limits:
+          memory: 1GiB
+          cpu: 8
+          stdout-size: 20MiB
+          stderr-size: 21MiB
+          workspace-size: 2GiB
+          artifact-size: 2KiB
+          pids: 256
+          step-timeout: 1s
+        steps:
+        - run: echo hello
+          stdin: {value: hello}
+          timeout: 300ms
+          expected:
+            exit-code: 0
+            stdout:
+              match: exact
+              path: expected.txt
+        - run: 'true'
+          expected: {exit-code: 255}
+        visibility: public
+        depends:
+        - build
+        artifacts:
+          inputs:
+          - from-job: build
+            name: program
+            path: program
+      private:
+        visibility: private
+        sandbox-image: ghcr.io/example/default:latest
+        limits:
+          memory: 1GiB
+          cpu: 8
+          stdout-size: 20MiB
+          stderr-size: 21MiB
+          workspace-size: 2GiB
+          artifact-size: 2KiB
+          pids: 256
+          step-timeout: 1s
+        steps:
+        - run: 'true'
+          expected: {exit-code: 255}
+        depends:
+        - build
+        artifacts:
+          inputs:
+          - from-job: build
+            name: program
+            path: program
+    description-path: description.md

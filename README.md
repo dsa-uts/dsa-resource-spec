@@ -25,7 +25,7 @@ check
 
 ```sh
 # manifest.yaml と登録された全課題を検証する
-go run ./cmd/source-spec validate <manifest-dir>
+go run ./cmd/resource-spec validate <manifest-dir>
 # マニフェストと登録された全課題のメタデータを JSON 出力する
 go run ./cmd/resource-spec catalog <manifest-dir>
 # 指定した課題の解決済み JSON を出力する

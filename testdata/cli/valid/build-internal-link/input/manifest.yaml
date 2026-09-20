@@ -1,0 +1,7 @@
+resources: []
+sandbox-images:
+  default:
+    context: internal
+    dockerfile: internal/Dockerfile
+    image: registry.example.com/example/default:v1
+    platforms: [linux/amd64]
