@@ -1,6 +1,5 @@
 .direnv/
 .data/
 result
-dist/
 __pycache__/
 /resource-spec
