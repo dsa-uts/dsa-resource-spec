@@ -158,7 +158,7 @@ func TestDefinitionRejections(t *testing.T) {
 	}
 }
 
-func TestHardlink(t *testing.T) {
+func TestReadHardlink(t *testing.T) {
 	// Git does not preserve hardlinks, so this case needs a temporary filesystem.
 	dir := t.TempDir()
 	if err := os.CopyFS(dir, os.DirFS("testdata/resource/valid/basic")); err != nil {
@@ -171,8 +171,12 @@ func TestHardlink(t *testing.T) {
 	if err := os.Link(filepath.Join(dir, "expected.txt"), description); err != nil {
 		t.Fatal(err)
 	}
-	if err := resource.Validate(os.DirFS(dir)); err == nil || !strings.Contains(err.Error(), "hardlink is forbidden") {
-		t.Fatalf("expected hardlink rejection, got %v", err)
+	r, err := resource.Read(os.DirFS(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(r.Files["description.md"], r.Files["expected.txt"]) {
+		t.Fatal("hardlinked materials differ")
 	}
 }
 
@@ -263,11 +267,11 @@ func (root unreadableFS) Open(name string) (fs.File, error) {
 	return root.FS.Open(name)
 }
 
-func TestReadIncludesUnreferencedFilesInSnapshot(t *testing.T) {
+func TestReadIncludesUnreferencedFilesInMemory(t *testing.T) {
 	m := fixture(t)
 	m["unused.txt"] = &fstest.MapFile{Data: []byte("unused")}
 	if _, err := resource.Read(unreadableFS{FS: m, name: "unused.txt"}); !errors.Is(err, fs.ErrPermission) {
-		t.Fatalf("expected snapshot read failure, got %v", err)
+		t.Fatalf("expected file read failure, got %v", err)
 	}
 	r, err := resource.Read(m)
 	if err != nil {
@@ -313,5 +317,40 @@ func TestYAMLAnchors(t *testing.T) {
 	m["resource.yaml"].Data = []byte(data)
 	if err := resource.Validate(m); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestReadExclusions(t *testing.T) {
+	for _, name := range []string{".env", ".git/config", ".github/workflows/check.yml", "node_modules/pkg/index.js", "nested/.hidden/file", "nested/node_modules/pkg/index.js"} {
+		t.Run(name, func(t *testing.T) {
+			m := fixture(t)
+			m[name] = &fstest.MapFile{Data: []byte("excluded")}
+			if _, err := resource.Read(unreadableFS{FS: m, name: name}); err != nil {
+				t.Fatalf("excluded entry was read: %v", err)
+			}
+			m["resource.yaml"].Data = bytes.ReplaceAll(m["resource.yaml"].Data, []byte("description.md"), []byte(name))
+			if _, err := resource.Read(m); !errors.Is(err, fs.ErrNotExist) {
+				t.Fatalf("expected excluded material to be missing, got %v", err)
+			}
+		})
+	}
+}
+
+func TestReadNodeModulesFile(t *testing.T) {
+	m := fixture(t)
+	m["node_modules"] = m["description.md"]
+	m["resource.yaml"].Data = bytes.ReplaceAll(m["resource.yaml"].Data, []byte("description.md"), []byte("node_modules"))
+	if _, err := resource.Read(m); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReadRejectsSpecialFiles(t *testing.T) {
+	for _, mode := range []fs.FileMode{fs.ModeNamedPipe, fs.ModeSocket, fs.ModeDevice} {
+		m := fixture(t)
+		m["special"] = &fstest.MapFile{Mode: mode}
+		if _, err := resource.Read(m); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+			t.Fatalf("expected special file rejection for %v, got %v", mode, err)
+		}
 	}
 }

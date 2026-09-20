@@ -35,7 +35,7 @@ workflows:
 - Resource・Workflow・Job の ID と成果物名は `^[a-z][a-z0-9-]*$`（英小文字で始まる英小文字・数字・ハイフン）。Workflow・Job の map key は ID、`name` は表示名。
 - 未知フィールド、重複した YAML キー、複数の YAML 文書は拒否する。`schema-version` は持たない。
 - `resource.version` は必須の SemVer 文字列（例: `"v1.0.0"`、省略形 `v1` / `v1.2` は不可）。公開時の更新規則は [公開手順](publishing.md#公開と再実行) を参照。
-- 相対 path は clean POSIX 形式とし、空文字、`.`、`..` component、絶対 path、backslash、NUL、colon、空 component を禁止する。下表の root 外を指してはいけない。課題の取り込みでは symlink を解決せずに除外し、リンクを経由するファイルも取り込まない。`resource.yaml` または参照素材が除外された場合はファイル不存在の検証エラーとする。ディレクトリ以外の非 regular file を拒否し、OS が link count を提供する場合は hardlink も拒否する。
+- 相対 path は clean POSIX 形式とし、空文字、`.`、`..` component、絶対 path、backslash、NUL、colon、空 component を禁止する。下表の root 外を指してはいけない。課題の取り込みでは symlink を解決せずに除外し、リンクを経由するファイルも取り込まない。`resource.yaml` または参照素材が除外された場合はファイル不存在の検証エラーとする。全階層の `.` で始まるファイル・ディレクトリと `node_modules` ディレクトリも除外する。除外対象以外の、ディレクトリではない非 regular file を拒否する。hardlink は通常ファイルとして扱い、inode の共有は検査しない。
 
 | パス | 基準となる場所 |
 | --- | --- |

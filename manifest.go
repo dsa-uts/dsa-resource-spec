@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"strings"
 	"sync"
 
 	"github.com/distribution/reference"
@@ -41,9 +40,18 @@ var manifestSchema = sync.OnceValues(func() (*jsonschema.Resolved, error) {
 })
 
 // ReadManifest validates the author index, resources and image build configuration.
-// It never builds images, contacts registries, or checks release history.
+// It loads the input tree once using the same exclusions as Read.
+// The caller must supply a stable filesystem throughout the call.
 func ReadManifest(root fs.FS) (*Manifest, error) {
-	data, err := fs.ReadFile(root, "resources.yaml")
+	files, err := readFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	return readManifest(files)
+}
+
+func readManifest(files resourceFiles) (*Manifest, error) {
+	data, err := files.read("resources.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +63,7 @@ func ReadManifest(root fs.FS) (*Manifest, error) {
 	if err := decodeYAML(data, schema, &manifest); err != nil {
 		return nil, fmt.Errorf("resources.yaml: %w", err)
 	}
-	if err := validateResourceEntries(root, manifest.Resources); err != nil {
+	if err := validateResourceEntries(files, manifest.Resources); err != nil {
 		return nil, err
 	}
 	if err := validateBuilds(manifest.SandboxImages); err != nil {
@@ -64,7 +72,7 @@ func ReadManifest(root fs.FS) (*Manifest, error) {
 	return &manifest, nil
 }
 
-func validateResourceEntries(root fs.FS, entries []ResourceEntry) error {
+func validateResourceEntries(files resourceFiles, entries []ResourceEntry) error {
 	ids, paths := map[string]bool{}, map[string]bool{}
 	for _, entry := range entries {
 		if ids[entry.ID] || paths[entry.Path] {
@@ -75,11 +83,7 @@ func validateResourceEntries(root fs.FS, entries []ResourceEntry) error {
 		if err := relative(entry.Path); err != nil {
 			return err
 		}
-		resourceFS, err := resourceDirectory(root, entry.Path)
-		if err != nil {
-			return err
-		}
-		resource, err := Read(resourceFS)
+		resource, err := read(files.sub(entry.Path))
 		if err != nil {
 			return fmt.Errorf("%s: %w", entry.Path, err)
 		}
@@ -88,38 +92,6 @@ func validateResourceEntries(root fs.FS, entries []ResourceEntry) error {
 		}
 	}
 	return nil
-}
-
-// resourceDirectory checks each component before Sub hides its entry type.
-func resourceDirectory(root fs.FS, name string) (fs.FS, error) {
-	for _, part := range strings.Split(name, "/") {
-		entries, err := fs.ReadDir(root, ".")
-		if err != nil {
-			return nil, err
-		}
-		found := false
-		for _, entry := range entries {
-			if entry.Name() != part {
-				continue
-			}
-			if entry.Type()&fs.ModeSymlink != 0 {
-				return nil, fmt.Errorf("%s: symlink is forbidden", name)
-			}
-			if !entry.IsDir() {
-				return nil, fmt.Errorf("%s: not a directory", name)
-			}
-			found = true
-			break
-		}
-		if !found {
-			return nil, &fs.PathError{Op: "sub", Path: name, Err: fs.ErrNotExist}
-		}
-		root, err = fs.Sub(root, part)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return root, nil
 }
 
 func validateBuilds(images map[string]ImageBuild) error {

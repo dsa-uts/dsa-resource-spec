@@ -19,7 +19,7 @@ func Validate(root fs.FS) error {
 	return err
 }
 
-// Read snapshots all regular files in a resource tree, excluding symbolic links,
+// Read loads regular files, excluding symbolic links, dot names and node_modules directories,
 // then validates the definition and returns its referenced materials.
 // The caller must supply a stable filesystem throughout the call.
 func Read(root fs.FS) (*Resource, error) {
@@ -27,6 +27,10 @@ func Read(root fs.FS) (*Resource, error) {
 	if err != nil {
 		return nil, err
 	}
+	return read(files)
+}
+
+func read(files resourceFiles) (*Resource, error) {
 	data, err := files.read("resource.yaml")
 	if err != nil {
 		return nil, err

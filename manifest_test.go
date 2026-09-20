@@ -1,6 +1,7 @@
 package resource_test
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -26,12 +27,12 @@ func TestManifest(t *testing.T) {
 	}
 }
 
-func TestManifestReadsOnlyListedResources(t *testing.T) {
+func TestManifestLoadsUnreferencedFiles(t *testing.T) {
 	m := manifestFixture(t)
 	m["images/unused"] = &fstest.MapFile{}
 	m["sample/unused-link"] = &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte("missing")}
-	if _, err := resource.ReadManifest(unreadableFS{FS: m, name: "images/unused"}); err != nil {
-		t.Fatal(err)
+	if _, err := resource.ReadManifest(unreadableFS{FS: m, name: "images/unused"}); !errors.Is(err, fs.ErrPermission) {
+		t.Fatalf("expected unreferenced file read failure, got %v", err)
 	}
 }
 
@@ -68,8 +69,8 @@ func TestManifestSymlinkDirectory(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err := resource.ReadManifest(os.DirFS(dir))
-			if err == nil || !strings.Contains(err.Error(), "symlink is forbidden") {
-				t.Fatalf("expected symlink rejection, got %v", err)
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Fatalf("expected excluded directory to be missing, got %v", err)
 			}
 		})
 	}
@@ -116,5 +117,49 @@ func TestBuildConfiguration(t *testing.T) {
 	if build.Context != "sandbox" || build.Dockerfile != "sandbox/Dockerfile" ||
 		build.Image != "ghcr.io/example/default" || strings.Join(build.Platforms, ",") != "linux/amd64" {
 		t.Fatalf("unexpected build configuration: %+v", build)
+	}
+}
+
+func TestManifestExclusions(t *testing.T) {
+	for _, name := range []string{".env", ".git/config", ".github/workflows/check.yml", "node_modules/pkg/index.js", "sample/.hidden/file", "sample/node_modules/pkg/index.js"} {
+		t.Run(name, func(t *testing.T) {
+			m := manifestFixture(t)
+			m[name] = &fstest.MapFile{}
+			if _, err := resource.ReadManifest(unreadableFS{FS: m, name: name}); err != nil {
+				t.Fatalf("excluded entry was read: %v", err)
+			}
+		})
+	}
+}
+
+// readOnceFS fails if any file is opened for reading more than once.
+type readOnceFS struct {
+	fs.FS
+	reads map[string]bool
+}
+
+func (root readOnceFS) ReadFile(name string) ([]byte, error) {
+	if root.reads[name] {
+		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrPermission}
+	}
+	root.reads[name] = true
+	return fs.ReadFile(root.FS, name)
+}
+
+func TestManifestValidatesResourcesFromMemory(t *testing.T) {
+	m := manifestFixture(t)
+	for name, file := range manifestFixture(t) {
+		if strings.HasPrefix(name, "sample/") {
+			data := strings.ReplaceAll(string(file.Data), "id: sample", "id: second")
+			m["second/"+strings.TrimPrefix(name, "sample/")] = &fstest.MapFile{Data: []byte(data)}
+		}
+	}
+	m["resources.yaml"].Data = []byte("resources:\n  - id: sample\n    path: sample\n  - id: second\n    path: second\nsandbox-images: {}\n")
+	if _, err := resource.ReadManifest(readOnceFS{FS: m, reads: map[string]bool{}}); err != nil {
+		t.Fatal(err)
+	}
+	delete(m, "second/description.md")
+	if _, err := resource.ReadManifest(m); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected second resource validation failure, got %v", err)
 	}
 }
