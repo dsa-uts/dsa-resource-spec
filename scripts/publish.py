@@ -24,7 +24,7 @@ def pending_resources(manifest, releases):
     pending = []
     published = [r for r in releases if not r["draft"]]
     for entry in manifest["resources"]:
-        directory = str(Path(entry["path"]).parent)
+        directory = entry["path"]
         definition = json.loads(run("resource-spec", "inspect", directory))
         version = definition["resource"]["version"]
         tag = f'{entry["id"]}/{version}'

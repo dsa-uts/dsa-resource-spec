@@ -1,5 +1,5 @@
 resources:
 - id: sample
-  path: sample/resource.yaml
+  path: sample
 sandbox-images: {}
 resources: []

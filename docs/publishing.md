@@ -9,7 +9,7 @@
 ```yaml
 resources:
   - id: sample
-    path: exercises/sample/resource.yaml
+    path: exercises/sample # resourceのコンテキストディレクトリ。トップにresource.yamlが置かれている。
 sandbox-images: {}
 ```
 

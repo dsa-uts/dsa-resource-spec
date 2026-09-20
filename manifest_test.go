@@ -3,6 +3,7 @@ package resource_test
 import (
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -16,17 +17,64 @@ func manifestFixture(t *testing.T) fstest.MapFS {
 }
 
 func TestManifest(t *testing.T) {
-	if _, err := resource.ReadManifest(os.DirFS("testdata/manifest/valid/basic")); err != nil {
+	manifest, err := resource.ReadManifest(os.DirFS("testdata/manifest/valid/basic"))
+	if err != nil {
 		t.Fatal(err)
+	}
+	if len(manifest.Resources) != 1 || manifest.Resources[0].Path != "sample" {
+		t.Fatalf("unexpected resources: %+v", manifest.Resources)
+	}
+}
+
+func TestManifestNestedDirectory(t *testing.T) {
+	m := manifestFixture(t)
+	nested := fstest.MapFS{}
+	for name, file := range m {
+		if name != "resources.yaml" {
+			nested["exercises/"+name] = file
+		}
+	}
+	nested["resources.yaml"] = &fstest.MapFile{Data: []byte(strings.ReplaceAll(string(m["resources.yaml"].Data), "path: sample", "path: exercises/sample"))}
+	if _, err := resource.ReadManifest(nested); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestManifestSymlinkDirectory(t *testing.T) {
+	for _, entryPath := range []string{"linked", "linked/sample"} {
+		t.Run(entryPath, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.CopyFS(dir, os.DirFS("testdata/manifest/valid/basic")); err != nil {
+				t.Fatal(err)
+			}
+			target := "sample"
+			if entryPath == "linked/sample" {
+				target = "."
+			}
+			if err := os.Symlink(target, filepath.Join(dir, "linked")); err != nil {
+				t.Fatal(err)
+			}
+			manifest := "resources:\n  - id: sample\n    path: " + entryPath + "\nsandbox-images: {}\n"
+			if err := os.WriteFile(filepath.Join(dir, "resources.yaml"), []byte(manifest), 0644); err != nil {
+				t.Fatal(err)
+			}
+			_, err := resource.ReadManifest(os.DirFS(dir))
+			if err == nil || !strings.Contains(err.Error(), "symlink is forbidden") {
+				t.Fatalf("expected symlink rejection, got %v", err)
+			}
+		})
 	}
 }
 
 func TestManifestRejections(t *testing.T) {
 	for name, replacement := range map[string]struct{ before, after string }{
 		"id mismatch":        {"id: sample", "id: other"},
-		"old history":        {"path: sample/resource.yaml", "path: sample/resource.yaml\n  versions: []"},
+		"old history":        {"path: sample", "path: sample\n  versions: []"},
 		"duplicate key":      {"resources:", "resources: []\nresources:"},
-		"path escape":        {"sample/resource.yaml", "../sample/resource.yaml"},
+		"file path":          {"path: sample", "path: sample/resource.yaml"},
+		"root directory":     {"path: sample", "path: ."},
+		"missing directory":  {"path: sample", "path: missing"},
+		"path escape":        {"path: sample", "path: ../sample"},
 		"multiple documents": {"resources:", "---\n{}\n---\nresources:"},
 		"unknown field":      {"resources:", "unexpected: true\nresources:"},
 		"null images":        {"sandbox-images: {}", "sandbox-images: null"},

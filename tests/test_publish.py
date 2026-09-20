@@ -10,10 +10,11 @@ spec.loader.exec_module(publish)
 
 
 class PublicationTests(unittest.TestCase):
-    manifest = {"resources": [{"id": "sample", "path": "sample/resource.yaml"}]}
+    manifest = {"resources": [{"id": "sample", "path": "exercises/sample"}]}
 
     def runner(self, *args):
         if args[1] == "inspect":
+            self.assertEqual(args, ("resource-spec", "inspect", "exercises/sample"))
             return json.dumps({"resource": {"version": "v1.0.0"}, "workflows": {}})
         if args[1] == "compare":
             return "-1" if args[3] == "v2.0.0" else "0" if args[3] in ("v1.0.0", "v1.0.0+build") else "1"
@@ -33,7 +34,7 @@ class PublicationTests(unittest.TestCase):
     def test_new_version(self):
         with patch.object(publish, "run", side_effect=self.runner):
             pending = publish.pending_resources(self.manifest, [{"tag_name": "sample/v0.9.0", "draft": False}])
-            self.assertEqual(pending[0][0], "sample/v1.0.0")
+            self.assertEqual(pending[0][:2], ("sample/v1.0.0", "exercises/sample"))
 
     def test_downgrade_and_metadata_only_change(self):
         for tag in ["sample/v2.0.0", "sample/v1.0.0+build"]:
@@ -70,6 +71,7 @@ class PublicationTests(unittest.TestCase):
             if args[:2] == ("resource-spec", "manifest"):
                 return json.dumps(manifest)
             if args[:2] == ("resource-spec", "inspect"):
+                self.assertEqual(args[2], "exercises/sample")
                 return json.dumps(definition)
             if args[:4] == ("gh", "api", "--paginate", "--slurp"):
                 return "[[]]"
@@ -83,6 +85,7 @@ class PublicationTests(unittest.TestCase):
             if args[:3] == ("docker", "buildx", "build"):
                 return ""
             if args[:2] == ("resource-spec", "archive"):
+                self.assertEqual(args[6], "exercises/sample")
                 mapping = json.loads(Path(args[3]).read_text())
                 self.assertEqual(mapping, {"ghcr.io/example/image:release": "ghcr.io/example/image@sha256:" + "b" * 64})
                 Path(args[5]).write_bytes(b"test archive")

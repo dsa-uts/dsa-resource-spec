@@ -12,6 +12,7 @@
             "pattern": "^[a-z][a-z0-9-]*$"
           },
           "path": {
+            "description": "Resource directory relative to the manifest root, containing resource.yaml. Must be a dedicated subdirectory.",
             "type": "string",
             "minLength": 1,
             "pattern": "^[^\\\\:\\x00]+$"

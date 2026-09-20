@@ -20,7 +20,7 @@ type Manifest struct {
 
 type ResourceEntry struct {
 	ID   string `yaml:"id" json:"id"`
-	Path string `yaml:"path" json:"path"`
+	Path string `yaml:"path" json:"path"` // Resource directory relative to the manifest root.
 }
 
 type ImageBuild struct {
@@ -75,13 +75,12 @@ func validateResourceEntries(root fs.FS, entries []ResourceEntry) error {
 		if err := relative(entry.Path); err != nil {
 			return err
 		}
-		if path.Base(entry.Path) != "resource.yaml" || path.Dir(entry.Path) == "." {
-			return fmt.Errorf("Resource requires dedicated directory/resource.yaml")
-		}
-		if _, err := readRegular(root, entry.Path); err != nil {
+		// Check from the manifest root so links in the resource directory path
+		// are rejected before fs.Sub hides those directory entries.
+		if _, err := readRegular(root, path.Join(entry.Path, "resource.yaml")); err != nil {
 			return err
 		}
-		resourceFS, err := fs.Sub(root, path.Dir(entry.Path))
+		resourceFS, err := fs.Sub(root, entry.Path)
 		if err != nil {
 			return err
 		}
