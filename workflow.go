@@ -3,98 +3,39 @@ package resource
 import (
 	_ "crypto/sha256"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/distribution/reference"
+	"golang.org/x/mod/semver"
 )
 
-type Workflow struct {
-	Name            string         `yaml:"name,omitempty" json:"name,omitempty"`
-	DescriptionPath string         `yaml:"description-path,omitempty" json:"description-path,omitempty"`
-	Presets         *Presets       `yaml:"presets,omitempty" json:"presets,omitempty"`
-	Jobs            map[string]Job `yaml:"jobs" json:"jobs"`
-}
+var identifier = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+var fullVersion = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+].*)?$`)
 
-type Presets struct {
-	Files []Preset `yaml:"files" json:"files"`
-}
-
-type Preset struct {
-	Source string `yaml:"source" json:"source"`
-	Path   string `yaml:"path" json:"path"`
-}
-
-type Job struct {
-	Name         string     `yaml:"name,omitempty" json:"name,omitempty"`
-	Visibility   string     `yaml:"visibility,omitempty" json:"visibility,omitempty"`
-	Depends      []string   `yaml:"depends,omitempty" json:"depends,omitempty"`
-	SandboxImage string     `yaml:"sandbox-image" json:"sandbox-image"`
-	Limits       Limits     `yaml:"limits" json:"limits"`
-	Artifacts    *Artifacts `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
-	Steps        []Step     `yaml:"steps" json:"steps"`
-}
-
-type Limits struct {
-	CPU           *int   `yaml:"cpu,omitempty" json:"cpu,omitempty"`
-	Memory        string `yaml:"memory" json:"memory"`
-	PIDs          *int   `yaml:"pids,omitempty" json:"pids,omitempty"`
-	StepTimeout   string `yaml:"step-timeout" json:"step-timeout"`
-	StdoutSize    string `yaml:"stdout-size,omitempty" json:"stdout-size,omitempty"`
-	StderrSize    string `yaml:"stderr-size,omitempty" json:"stderr-size,omitempty"`
-	WorkspaceSize string `yaml:"workspace-size,omitempty" json:"workspace-size,omitempty"`
-	ArtifactSize  string `yaml:"artifact-size,omitempty" json:"artifact-size,omitempty"`
-}
-
-type Artifacts struct {
-	Inputs  []ArtifactInput  `yaml:"inputs,omitempty" json:"inputs,omitempty"`
-	Outputs []ArtifactOutput `yaml:"outputs,omitempty" json:"outputs,omitempty"`
-}
-
-type ArtifactInput struct {
-	FromJob string `yaml:"from-job" json:"from-job"`
-	Name    string `yaml:"name" json:"name"`
-	Path    string `yaml:"path" json:"path"`
-}
-
-type ArtifactOutput struct {
-	Name        string `yaml:"name" json:"name"`
-	Path        string `yaml:"path" json:"path"`
-	Visibility  string `yaml:"visibility,omitempty" json:"visibility,omitempty"`
-	ContentType string `yaml:"content-type,omitempty" json:"content-type,omitempty"`
-}
-
-type Step struct {
-	Name     string    `yaml:"name,omitempty" json:"name,omitempty"`
-	Compile  *bool     `yaml:"compile,omitempty" json:"compile,omitempty"`
-	Run      string    `yaml:"run" json:"run"`
-	Stdin    *Stream   `yaml:"stdin,omitempty" json:"stdin,omitempty"`
-	Timeout  string    `yaml:"timeout,omitempty" json:"timeout,omitempty"`
-	Expected *Expected `yaml:"expected,omitempty" json:"expected,omitempty"`
-}
-
-type Stream struct {
-	Value *string `yaml:"value,omitempty" json:"value,omitempty"`
-	Path  string  `yaml:"path,omitempty" json:"path,omitempty"`
-	Match string  `yaml:"match,omitempty" json:"match,omitempty"`
-}
-
-type Expected struct {
-	ExitCode *int    `yaml:"exit-code,omitempty" json:"exit-code,omitempty"`
-	Stdout   *Stream `yaml:"stdout,omitempty" json:"stdout,omitempty"`
-	Stderr   *Stream `yaml:"stderr,omitempty" json:"stderr,omitempty"`
-}
-
-func applyWorkflowDefaults(workflow Workflow) {
-	for id, job := range workflow.Jobs {
-		if job.Visibility == "" {
-			job.Visibility = "public"
-			workflow.Jobs[id] = job
+func validateResource(resource *Resource) error {
+	if !identifier.MatchString(resource.Metadata.ID) || resource.Metadata.Name == "" || !fullVersion.MatchString(resource.Metadata.Version) || !semver.IsValid(resource.Metadata.Version) {
+		return fmt.Errorf("invalid resource metadata")
+	}
+	if len(resource.Workflows) == 0 {
+		return fmt.Errorf("resource requires workflows")
+	}
+	for id, workflow := range resource.Workflows {
+		if !identifier.MatchString(id) {
+			return fmt.Errorf("invalid workflow ID %q", id)
+		}
+		if err := validateWorkflow(workflow); err != nil {
+			return fmt.Errorf("workflow %s: %w", id, err)
 		}
 	}
+	return nil
 }
 
 func validateWorkflow(workflow Workflow) error {
+	if len(workflow.Jobs) == 0 {
+		return fmt.Errorf("workflow requires jobs")
+	}
 	if workflow.Presets != nil {
 		paths := map[string]bool{}
 		for _, preset := range workflow.Presets.Files {
@@ -116,6 +57,27 @@ func validateWorkflow(workflow Workflow) error {
 }
 
 func validateJob(id string, job Job, jobs map[string]Job) error {
+	if !identifier.MatchString(id) {
+		return fmt.Errorf("invalid job ID %q", id)
+	}
+	if job.Visibility != "public" && job.Visibility != "private" {
+		return fmt.Errorf("invalid job visibility")
+	}
+	limits := job.Limits
+	if limits.CPU != 1 || limits.PIDs < 1 || limits.Memory <= 0 || limits.StdoutSize <= 0 || limits.StderrSize <= 0 || limits.WorkspaceSize <= 0 || limits.ArtifactSize <= 0 {
+		return fmt.Errorf("invalid job limits")
+	}
+	if len(job.Steps) == 0 {
+		return fmt.Errorf("job requires steps")
+	}
+	seen := map[string]bool{}
+	for _, dependency := range job.Depends {
+		if seen[dependency] {
+			return fmt.Errorf("duplicate dependency: %s", dependency)
+		}
+		seen[dependency] = true
+	}
+
 	if _, err := imageReference(job.SandboxImage); err != nil {
 		return err
 	}
@@ -134,6 +96,18 @@ func validateJob(id string, job Job, jobs map[string]Job) error {
 		}
 	}
 	for _, step := range job.Steps {
+		if step.Timeout <= 0 {
+			return fmt.Errorf("invalid step timeout")
+		}
+		if step.Expected.ExitCode < 0 || step.Expected.ExitCode > 255 {
+			return fmt.Errorf("invalid expected exit code")
+		}
+		for _, output := range []*OutputExpectation{step.Expected.Stdout, step.Expected.Stderr} {
+			if output != nil && output.Match != MatchExact && output.Match != MatchEasy && output.Match != MatchSorted {
+				return fmt.Errorf("invalid output match mode")
+			}
+		}
+
 		if strings.TrimSpace(step.Run) == "" || strings.ContainsRune(step.Run, 0) {
 			return fmt.Errorf("invalid run script")
 		}
@@ -144,6 +118,22 @@ func validateJob(id string, job Job, jobs map[string]Job) error {
 func validateArtifacts(job Job, jobs map[string]Job) error {
 	names, paths := map[string]bool{}, map[string]bool{}
 	for _, output := range job.Artifacts.Outputs {
+		if !identifier.MatchString(output.Name) {
+			return fmt.Errorf("invalid artifact name")
+		}
+		switch output.Visibility {
+		case "public":
+			if !slices.Contains([]string{"image/png", "image/jpeg", "text/plain", "application/json"}, output.ContentType) {
+				return fmt.Errorf("invalid public artifact content type")
+			}
+		case "private":
+			if output.ContentType != "" {
+				return fmt.Errorf("private artifact cannot specify content type")
+			}
+		default:
+			return fmt.Errorf("invalid artifact visibility")
+		}
+
 		if err := relative(output.Path); err != nil {
 			return err
 		}
@@ -155,6 +145,9 @@ func validateArtifacts(job Job, jobs map[string]Job) error {
 	}
 	paths = map[string]bool{}
 	for _, input := range job.Artifacts.Inputs {
+		if !identifier.MatchString(input.Name) {
+			return fmt.Errorf("invalid artifact name")
+		}
 		if err := relative(input.Path); err != nil {
 			return err
 		}

@@ -30,9 +30,9 @@ Job ごとに独立した作業領域を作成し、次の順で処理する。�
 4. 実行結果と、存在する出力成果物を回収する。
 5. 作業領域を削除する。
 
-提出ファイルはコピーなので、実行中の変更は元の提出物に反映しない。`stdin.path` の内容は Judge が標準入力に流し、`expected.*.path` は Judge 内で比較に使う。これらのファイルは作業領域へ配置しない。
+提出ファイルはコピーなので、実行中の変更は元の提出物に反映しない。解決済みの `Step.Stdin` を Judge が標準入力に流し、`Expected.Stdout` / `Stderr` の `Content` を Judge 内で比較に使う。これらのファイルは作業領域へ配置しない。
 
-Preset は実行ユーザーによる変更・削除・置換を禁止する。親ディレクトリへの書き込み権限でも置換できるため、ファイル単体の権限変更だけでは不十分。
+Preset は `Executable` が true なら実行できるようにし、実行ユーザーによる変更・削除・置換を禁止する。親ディレクトリへの書き込み権限でも置換できるため、ファイル単体の権限変更だけでは不十分。
 
 ### 成果物の回収
 
@@ -43,7 +43,7 @@ Preset は実行ユーザーによる変更・削除・置換を禁止する。�
 - `limits.artifact-size` を超えるファイルは保存せず、回収状況を記録する。
 - 実行ビットだけを維持し、実行可能なら `0755`、それ以外は `0644` にする。owner・group・suid・sgid・sticky bit は維持しない。
 - 成果物は通常ファイルのみ。ディレクトリを指定すると、出力では回収失敗、入力では setup failure とする。
-- 提出ファイル・Preset・成果物の symlink、hardlink、device、FIFO、socket は検証エラーとする。
+- 提出ファイル・成果物の symlink、hardlink、device、FIFO、socket は検証エラーとする。Preset は解決済みの bytes から通常ファイルとして配置する。作者の素材参照に含まれる symlink は読み込み時に解決済み。
 - 成果物は信頼できない入力として扱い、Judge のホスト上では実行しない。
 
 ## Step の実行
@@ -64,7 +64,7 @@ run: |
 
 ## タイムアウト
 
-Step は `step.timeout`、省略時は `job.limits.step-timeout` を使う。Job 全体は各 Step の実効 timeout の合計に Judge 内部の buffer（既定10秒）を加える。たとえば 30秒・10秒・10秒の Step なら60秒になる。
+YAML の `step.timeout`、省略時は `job.limits.step-timeout` を読み込み時に解決する。Judge は解決済み `Step.Timeout` を使う。Job 全体は各 Step の実効 timeout の合計に Judge 内部の buffer（既定10秒）を加える。たとえば 30秒・10秒・10秒の Step なら60秒になる。
 
 課題定義から変更できるのは Step の時間制限だけ。`job.limits.timeout-seconds` と `job.limits.timeout-buffer-seconds` は受け付けない。
 

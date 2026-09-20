@@ -11,7 +11,7 @@ spec.loader.exec_module(build_images)
 
 class ImageBuildTests(unittest.TestCase):
     def test_no_images_needs_no_publication_services(self):
-        for resources in ([], [{"id": "sample", "path": "exercises/sample"}]):
+        for resources in ([], [{"metadata": {"id": "sample", "name": "Sample", "version": "v1.0.0"}, "workflows": {}}]):
             with self.subTest(resources=resources):
                 manifest = {"resources": resources, "sandbox-images": {}}
                 with patch.object(build_images, "run", return_value=json.dumps(manifest)) as run:
@@ -19,7 +19,7 @@ class ImageBuildTests(unittest.TestCase):
                 run.assert_called_once_with("resource-spec", "manifest", ".")
 
     def test_build_and_push_images(self):
-        manifest = {"resources": [{"id": "sample", "path": "exercises/sample"}],
+        manifest = {"resources": [{"metadata": {"id": "sample", "name": "Sample", "version": "v1.0.0"}, "workflows": {}}],
                     "sandbox-images": {"sandbox": {
                         "image": "ghcr.io/example/sandbox",
                         "platforms": ["linux/amd64", "linux/arm64"],

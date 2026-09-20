@@ -4,33 +4,29 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/fs"
+	"os"
 	"sync"
 
 	"github.com/distribution/reference"
 	"github.com/google/jsonschema-go/jsonschema"
-	"github.com/spf13/afero"
 )
 
-// Manifest is the author/CI index. It is not required when reading a release ZIP.
+// Manifest contains resolved resources in registration order and CI image build settings.
 type Manifest struct {
-	Resources     []ResourceEntry       `yaml:"resources" json:"resources"`
-	SandboxImages map[string]ImageBuild `yaml:"sandbox-images" json:"sandbox-images"`
+	Resources     []Resource            `json:"resources"`
+	SandboxImages map[string]ImageBuild `json:"sandbox-images"`
+}
+type manifestInput struct {
+	Resources     []resourceEntry          `yaml:"resources"`
+	SandboxImages map[string]rawImageBuild `yaml:"sandbox-images"`
 }
 
-type ResourceEntry struct {
-	ID   string `yaml:"id" json:"id"`
-	Path string `yaml:"path" json:"path"` // Resource directory relative to the manifest root.
+type resourceEntry struct {
+	ID   string `yaml:"id"`
+	Path string `yaml:"path"` // Resource directory relative to the manifest root.
 }
 
-type ImageBuild struct {
-	Context    string   `yaml:"context" json:"context"`
-	Dockerfile string   `yaml:"dockerfile" json:"dockerfile"`
-	Image      string   `yaml:"image" json:"image"`
-	Platforms  []string `yaml:"platforms" json:"platforms"`
-}
-
-//go:embed schemas/resources.schema.json
+//go:embed schemas/manifest.schema.json
 var manifestSchemaBytes []byte
 var manifestSchema = sync.OnceValues(func() (*jsonschema.Resolved, error) {
 	var schema jsonschema.Schema
@@ -40,19 +36,15 @@ var manifestSchema = sync.OnceValues(func() (*jsonschema.Resolved, error) {
 	return schema.Resolve(nil)
 })
 
-// ReadManifest validates the author index, resources and image build configuration.
-// It loads the input tree once using the same exclusions as Read.
-// The caller must supply a stable filesystem throughout the call.
-func ReadManifest(root fs.FS) (*Manifest, error) {
-	files, err := readFiles(root)
+// LoadManifest validates manifest.yaml and resolves every registered resource.
+// The caller must keep the input directory stable throughout the call.
+func LoadManifest(dir string) (*Manifest, error) {
+	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return nil, err
 	}
-	return readManifest(files)
-}
-
-func readManifest(files afero.Fs) (*Manifest, error) {
-	data, err := readFile(files, "resources.yaml")
+	defer root.Close()
+	data, _, err := readMaterial(root, "manifest.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -60,45 +52,43 @@ func readManifest(files afero.Fs) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	var manifest Manifest
-	if err := decodeYAML(data, schema, &manifest); err != nil {
-		return nil, fmt.Errorf("resources.yaml: %w", err)
+	var input manifestInput
+	if err := decodeYAML(data, schema, &input); err != nil {
+		return nil, fmt.Errorf("manifest.yaml: %w", err)
 	}
-	if err := validateResourceEntries(files, manifest.Resources); err != nil {
+	images := make(map[string]ImageBuild, len(input.SandboxImages))
+	for id, build := range input.SandboxImages {
+		images[id] = ImageBuild(build)
+	}
+	if err := validateBuilds(images); err != nil {
 		return nil, err
 	}
-	if err := validateBuilds(manifest.SandboxImages); err != nil {
-		return nil, err
-	}
-	return &manifest, nil
-}
-
-func validateResourceEntries(files afero.Fs, entries []ResourceEntry) error {
+	manifest := &Manifest{Resources: make([]Resource, 0, len(input.Resources)), SandboxImages: images}
 	ids, paths := map[string]bool{}, map[string]bool{}
-	for _, entry := range entries {
+	for _, entry := range input.Resources {
 		if ids[entry.ID] || paths[entry.Path] {
-			return fmt.Errorf("invalid or duplicate Resource ID/path")
+			return nil, fmt.Errorf("duplicate resource ID/path")
 		}
-		ids[entry.ID] = true
-		paths[entry.Path] = true
+		ids[entry.ID], paths[entry.Path] = true, true
 		if err := relative(entry.Path); err != nil {
-			return err
+			return nil, err
 		}
-		resource, err := read(afero.NewBasePathFs(files, entry.Path))
+		resource, err := loadResource(root, entry.Path)
 		if err != nil {
-			return fmt.Errorf("%s: %w", entry.Path, err)
+			return nil, fmt.Errorf("%s: %w", entry.Path, err)
 		}
-		if resource.Definition.Resource.ID != entry.ID {
-			return fmt.Errorf("Resource ID mismatch: %s", entry.ID)
+		if resource.Metadata.ID != entry.ID {
+			return nil, fmt.Errorf("resource ID mismatch: %s", entry.ID)
 		}
+		manifest.Resources = append(manifest.Resources, *resource)
 	}
-	return nil
+	return manifest, nil
 }
 
 func validateBuilds(images map[string]ImageBuild) error {
 	repositories := map[string]bool{}
 	for _, build := range images {
-		if err := relative(build.Context); err != nil {
+		if err := relative(build.Context); build.Context != "." && err != nil {
 			return err
 		}
 		if err := relative(build.Dockerfile); err != nil {

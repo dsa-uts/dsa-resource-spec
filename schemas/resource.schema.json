@@ -111,7 +111,8 @@
                   "type": "object",
                   "properties": {
                     "cpu": {
-                      "const": 1
+                      "const": 1,
+                      "default": 1
                     },
                     "memory": {
                       "type": "string",
@@ -119,26 +120,31 @@
                     },
                     "pids": {
                       "type": "integer",
-                      "minimum": 1
+                      "minimum": 1,
+                      "default": 128
                     },
                     "step-timeout": {
                       "$ref": "#/$defs/duration"
                     },
                     "stdout-size": {
                       "type": "string",
-                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$"
+                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
+                      "default": "10MiB"
                     },
                     "stderr-size": {
                       "type": "string",
-                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$"
+                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
+                      "default": "10MiB"
                     },
                     "workspace-size": {
                       "type": "string",
-                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$"
+                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
+                      "default": "128MiB"
                     },
                     "artifact-size": {
                       "type": "string",
-                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$"
+                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
+                      "default": "1MiB"
                     }
                   },
                   "required": [

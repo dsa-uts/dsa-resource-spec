@@ -21,44 +21,51 @@ direnv allow .
 check
 ```
 
-## CLI 
+## CLI
 
 ```sh
-# validate <resource dir>: リソース定義を検証する
-go run ./cmd/resource-spec validate testdata/resource/valid/basic
-# inspect <resource dir>: リソース定義を検証して、読み込んだ結果をJSONで出力する
-go run ./cmd/resource-spec inspect testdata/resource/valid/basic
+# manifest.yaml と登録された全課題を検証する
+resource-spec validate <manifest-dir>
+# 素材を解決したマニフェスト全体を JSON 出力する
+resource-spec manifest <manifest-dir>
+# 指定した課題の解決済み JSON を出力する
+resource-spec inspect <manifest-dir> <resource-id>
 ```
 
-課題一覧の検証に使う `manifest` は [登録・ビルド手順](docs/publishing.md) を参照してください。
+チェックアウトからは `go run ./cmd/resource-spec` でも実行できます。
+
+```sh
+go run ./cmd/resource-spec inspect testdata/resource/valid/basic sample
+```
 
 ## Go から使う
 
 ```go
-import (
-    "os"
-    resource "github.com/dsa-uts/dsa-resource-spec"
-)
-
-func load() (*resource.Resource, error) {
-    return resource.Read(os.DirFS("testdata/resource/valid/basic"))
+manifest, err := resource.LoadManifest("path/to/manifest-directory")
+if err != nil {
+    return err
 }
+// Resources は manifest.yaml の登録順。ID は Metadata.ID にある。
+data, err := json.Marshal(manifest.Resources[0])
+if err != nil {
+    return err
+}
+restored, err := resource.DecodeResource(bytes.NewReader(data))
 ```
 
-戻り値の `Definition` は型付き定義、`Files` は課題ルートからの相対パスをキーとする素材の bytes です。`archive/zip.Reader` も `fs.FS` として渡せます。入力形式の判定や ZIP を開く・閉じる処理は呼び出し側で行い、ディスクへの展開は不要です。
+パッケージの import path は `github.com/dsa-uts/dsa-resource-spec`（package 名 `resource`）です。
 
-| API | 用途 |
+| 関数 | 用途 |
 | --- | --- |
-| `Read(fs.FS) (*Resource, error)` | 課題内の通常ファイルを一括で取り込み、定義と参照素材を検証して返す。入力 filesystem は保持しない。 |
-| `Validate(fs.FS) error` | `Read` と同じ検証だけを行う。 |
-| `ReadManifest(fs.FS) (*Manifest, error)` | 作者・CI 用の課題一覧とビルド設定(resources.yaml)を検証する|
+| `LoadManifest(dir string) (*Manifest, error)` | `manifest.yaml` と全課題を検証し、素材の読み込み・単位変換・既定値の補完を行う。 |
+| `DecodeResource(r io.Reader) (*Resource, error)` | 解決済み Resource の JSON を復元し、依存関係・実行制限などを検証する。未知フィールドと複数文書は拒否する。 |
 
-取得・認証・展開・採点・実行・公開済みバージョン管理は呼び出し側で行います。
+公開データは [解決済み JSON の契約](docs/resolved-resource.md) を参照してください。説明文は Markdown の `string`、その他の素材は `[]byte` です。読み込み後にファイルへアクセスする必要はありません。
 
-### 入力 filesystem の条件
+### ローカルファイルの読み込み
 
-入力は呼び出し中に変更しないでください。`Read` と `ReadManifest` は入力全体を一度だけ走査し、通常ファイルを未参照のものも含めてメモリに取り込みます。全階層で symlink、`.` で始まるファイル・ディレクトリ、`node_modules` ディレクトリを除外します。symlink は辿らず、除外ディレクトリ内は走査しません。定義・参照素材が除外された場合は、ファイル不存在のエラーになります。
+入力は呼び出し中に変更しないでください。素材の参照は各 `resource.yaml` のディレクトリを基準とし、`../shared/input.txt` のような共有素材を許可します。`os.Root` によりアクセスをマニフェストのディレクトリ内に制限します。範囲内を指す相対 symlink は辿り、範囲外と絶対 symlink は拒否します。
 
-取り込み後はメモリ上だけで検証します。`ReadManifest` は同じデータを共有して登録された全課題を検証し、課題ごとの再走査やファイル内容の再コピーは行いません。`Read` の戻り値の `Files` は参照素材のみです。
+定義と明示的に参照した通常ファイルだけを読み込みます。隠しファイルや `node_modules` の一律除外は行いません。未参照ファイル、Dockerfile、ビルドコンテキストは読みません。Preset はリンク先の内容と実行ビットを取り込み、元の参照パスは返しません。hardlink は通常ファイルとして扱います。
 
-hardlink は通常ファイルとして扱い、inode の共有は検査しません。除外対象以外の、ディレクトリではない非 regular file は拒否します。独自の `fs.FS` はファイル種別を正しく公開する必要があります。同時書き換えの検出や、ある一時点の内容の取得は保証しません。未参照ファイルも取り込むため、入力の総容量や ZIP の取得・展開サイズの上限は呼び出し側で管理してください。
+同時書き換えの検出や一時点のスナップショット取得は保証しません。入力容量、取得・認証、採点・実行、公開済みバージョン管理は呼び出し側で管理してください。

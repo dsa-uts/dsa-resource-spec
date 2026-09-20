@@ -1,368 +1,329 @@
 package resource_test
 
 import (
-	"archive/zip"
 	"bytes"
-	"errors"
-	"io/fs"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
-	"testing/fstest"
+	"time"
 
 	resource "github.com/dsa-uts/dsa-resource-spec"
 )
 
-func fixture(t *testing.T) fstest.MapFS {
+func write(t *testing.T, dir, name string, data []byte) {
 	t.Helper()
-	return copyFixture(t, "testdata/resource/valid/basic")
+	path := filepath.Join(dir, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatal(err)
+	}
 }
 
-// copyFixture is only for unit tests that mutate files in memory.
-func copyFixture(t *testing.T, dir string) fstest.MapFS {
+func fixture(t *testing.T) string {
 	t.Helper()
-	m := fstest.MapFS{}
-	err := fs.WalkDir(os.DirFS(dir), ".", func(p string, e fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	dir := t.TempDir()
+	if err := os.CopyFS(dir, os.DirFS("testdata/resource/valid/basic")); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func replace(t *testing.T, dir, name, before, after string) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(data, []byte(before)) {
+		t.Fatalf("missing replacement target %q", before)
+	}
+	write(t, dir, name, bytes.ReplaceAll(data, []byte(before), []byte(after)))
+}
+
+func load(t *testing.T, dir string) *resource.Resource {
+	t.Helper()
+	manifest, err := resource.LoadManifest(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &manifest.Resources[0]
+}
+
+func TestResolvedResource(t *testing.T) {
+	dir := fixture(t)
+	r := load(t, dir)
+	workflow := r.Workflows["main"]
+	if r.Metadata.ID != "sample" || workflow.Description == "" {
+		t.Fatal(r)
+	}
+	job := workflow.Jobs["public"]
+	if job.Limits.Memory != 64<<20 || job.Limits.CPU != 1 || job.Limits.PIDs != 128 || job.Limits.WorkspaceSize != 128<<20 || job.Limits.ArtifactSize != 1<<20 || job.Limits.StdoutSize != 10<<20 || job.Limits.StderrSize != 10<<20 {
+		t.Fatal(job.Limits)
+	}
+	if job.Steps[0].Timeout != time.Second || job.Steps[1].Expected.ExitCode != 0 || job.Steps[1].Expected.Stdout != nil {
+		t.Fatal(job.Steps)
+	}
+	if workflow.Jobs["build"].Artifacts.Outputs[0].Visibility != "private" || !workflow.Jobs["build"].Steps[0].Compile {
+		t.Fatal(workflow)
+	}
+	expected, err := os.ReadFile(filepath.Join(dir, "sample/expected.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(job.Steps[0].Expected.Stdout.Content, expected) {
+		t.Fatal("expected output not resolved")
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{`"source":`, `"description-path":`, `"definition":`, `"step-timeout":`, "expected.txt"} {
+		if bytes.Contains(data, []byte(forbidden)) {
+			t.Fatalf("source detail leaked: %s", forbidden)
 		}
-		if !e.IsDir() {
-			b, err := os.ReadFile(filepath.Join(dir, p))
-			if err != nil {
-				return err
+	}
+	restored, err := resource.DecodeResource(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(r, restored) {
+		t.Fatal("JSON round trip changed resource")
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(restored.Workflows["main"].Jobs["public"].Steps[0].Expected.Stdout.Content, expected) {
+		t.Fatal("resource retained filesystem")
+	}
+}
+
+func TestSharedMaterials(t *testing.T) {
+	dir := fixture(t)
+	write(t, dir, "shared/.hidden/input.bin", []byte{0, 255, 1})
+	if err := os.Chmod(filepath.Join(dir, "shared/.hidden/input.bin"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	replace(t, dir, "sample/resource.yaml", "    description-path: description.md", "    description-path: ../shared/description.md\n    presets:\n      files:\n        - source: ../shared/.hidden/input.bin\n          path: tools/program")
+	write(t, dir, "shared/description.md", []byte("# Shared\n"))
+	replace(t, dir, "sample/resource.yaml", "- run: echo hello", "- run: echo hello\n          stdin:\n            path: ../shared/.hidden/input.bin\n          timeout: 300ms")
+	replace(t, dir, "sample/resource.yaml", "path: expected.txt", "value: ''")
+	r := load(t, dir)
+	workflow := r.Workflows["main"]
+	preset := workflow.Presets.Files[0]
+	step := workflow.Jobs["public"].Steps[0]
+	if workflow.Description != "# Shared\n" || !preset.Executable || preset.Path != "tools/program" || !bytes.Equal(preset.Content, []byte{0, 255, 1}) || !bytes.Equal(step.Stdin, preset.Content) || step.Timeout != 300*time.Millisecond {
+		t.Fatal(workflow)
+	}
+	if step.Expected.Stdout == nil || len(step.Expected.Stdout.Content) != 0 || step.Expected.Stderr != nil {
+		t.Fatal(step.Expected)
+	}
+	data, _ := json.Marshal(r)
+	restored, err := resource.DecodeResource(bytes.NewReader(data))
+	if err != nil || !reflect.DeepEqual(r, restored) {
+		t.Fatalf("binary/empty round trip: %v", err)
+	}
+}
+
+func TestReferenceContainment(t *testing.T) {
+	for _, kind := range []string{"internal-link", "external-link", "external-parent", "absolute", "directory", "unused-link", "symlink-parent"} {
+		t.Run(kind, func(t *testing.T) {
+			dir := fixture(t)
+			outside := t.TempDir()
+			write(t, outside, "secret", []byte("secret"))
+			path := "description.md"
+			valid := false
+			switch kind {
+			case "internal-link":
+				if err := os.Symlink("description.md", filepath.Join(dir, "sample/link")); err != nil {
+					t.Fatal(err)
+				}
+				path, valid = "link", true
+			case "external-link":
+				if err := os.Symlink(filepath.Join(outside, "secret"), filepath.Join(dir, "sample/link")); err != nil {
+					t.Fatal(err)
+				}
+				path = "link"
+			case "external-parent":
+				path = "../../" + filepath.Base(outside) + "/secret"
+			case "absolute":
+				path = filepath.Join(outside, "secret")
+			case "directory":
+				path = "."
+			case "unused-link":
+				if err := os.Symlink("missing", filepath.Join(dir, "sample/unused")); err != nil {
+					t.Fatal(err)
+				}
+				valid = true
+			case "symlink-parent":
+				write(t, dir, "shared/nested/unused", nil)
+				write(t, dir, "shared/description.md", []byte("shared"))
+				if err := os.Symlink("../shared/nested", filepath.Join(dir, "sample/link")); err != nil {
+					t.Fatal(err)
+				}
+				path, valid = "link/../description.md", true
 			}
-			m[p] = &fstest.MapFile{Data: b, Mode: 0644}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
+			replace(t, dir, "sample/resource.yaml", "description-path: description.md", "description-path: "+path)
+			r, err := resource.LoadManifest(dir)
+			if (err == nil) != valid {
+				t.Fatalf("valid=%v, error=%v", valid, err)
+			}
+			if kind == "symlink-parent" && r.Resources[0].Workflows["main"].Description != "shared" {
+				t.Fatal("symlink path cleaned before resolution")
+			}
+		})
 	}
-	return m
-}
-
-func TestRead(t *testing.T) {
-	m := fixture(t)
-	r, err := resource.Read(m)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.Definition.Resource.Version != "v1.0.0" {
-		t.Fatal(r.Definition.Resource)
-	}
-	if string(r.Files["description.md"]) == "" {
-		t.Fatal("missing description")
-	}
-	delete(m, "description.md")
-	if len(r.Files["description.md"]) == 0 {
-		t.Fatal("reader retained filesystem")
-	}
-}
-
-func TestJobVisibility(t *testing.T) {
-	for _, producer := range []string{"", "public", "private"} {
-		for _, consumer := range []string{"", "public", "private"} {
-			t.Run("producer="+producer+"/consumer="+consumer, func(t *testing.T) {
-				m := fixture(t)
-				// The first two visibility declarations belong to build and public.
-				parts := strings.SplitN(string(m["resource.yaml"].Data), "        visibility: public\n", 3)
-				if len(parts) != 3 {
-					t.Fatal("fixture must declare two public jobs")
-				}
-				data := parts[0]
-				for i, visibility := range []string{producer, consumer} {
-					if visibility != "" {
-						data += "        visibility: " + visibility + "\n"
-					}
-					data += parts[i+1]
-				}
-				m["resource.yaml"].Data = []byte(data)
-				r, err := resource.Read(m)
-				if producer == "private" && consumer != "private" {
-					if err == nil || !strings.Contains(err.Error(), "public Job depends on private Job") {
-						t.Fatalf("expected public/private dependency rejection, got %v", err)
-					}
-					return
-				}
-				if err != nil {
-					t.Fatal(err)
-				}
-				jobs := r.Definition.Workflows["main"].Jobs
-				for id, want := range map[string]string{"build": producer, "public": consumer, "private": "private"} {
-					if want == "" {
-						want = "public"
-					}
-					if got := jobs[id].Visibility; got != want {
-						t.Errorf("job %s visibility = %q, want %q", id, got, want)
-					}
-				}
-			})
-		}
-	}
-}
-
-// Each fixture is a complete filesystem; never overlay it onto another case.
-func testFixtures(t *testing.T, kind string, validate func(fs.FS) error) {
-	t.Helper()
-	for _, outcome := range []string{"valid", "invalid"} {
-		base := filepath.Join("testdata", kind, outcome)
-		entries, err := os.ReadDir(base)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(entries) == 0 {
-			t.Fatalf("no fixtures in %s", base)
-		}
-		for _, entry := range entries {
-			t.Run(outcome+"/"+entry.Name(), func(t *testing.T) {
-				if !entry.IsDir() {
-					t.Fatal("fixture must be a directory")
-				}
-				err := validate(os.DirFS(filepath.Join(base, entry.Name())))
-				if outcome == "valid" && err != nil {
-					t.Fatal(err)
-				}
-				if outcome == "invalid" && err == nil {
-					t.Fatal("invalid fixture accepted")
-				}
-			})
-		}
-	}
-}
-
-func TestFixtures(t *testing.T) {
-	testFixtures(t, "resource", resource.Validate)
 }
 
 func TestDefinitionRejections(t *testing.T) {
-	for name, replacement := range map[string]struct{ before, after string }{
-		"unknown field":      {"resource:", "unknown: true\nresource:"},
-		"working-directory":  {"      build:\n", "      build:\n        working-directory: /workspace\n"},
-		"duplicate key":      {"resource:", "resource: {}\nresource:"},
-		"multiple documents": {"resource:", "---\n{}\n---\nresource:"},
-		"unqualified image":  {"ghcr.io/example/default:latest", "default:latest"},
-		"untagged image":     {"ghcr.io/example/default:latest", "ghcr.io/example/default"},
-		"version":            {"v1.0.0", "v01.0.0"},
-		"short version":      {"v1.0.0", "v1.0"},
-		"numeric prerelease": {"v1.0.0", "v1.0.0-01"},
-		"path escape":        {"description.md", "../description.md"},
+	for name, pair := range map[string][2]string{
+		"unknown field":        {"resource:", "unknown: true\nresource:"},
+		"duplicate key":        {"resource:", "resource: {}\nresource:"},
+		"multiple documents":   {"resource:", "---\n{}\n---\nresource:"},
+		"unqualified image":    {"ghcr.io/example/default:latest", "default:latest"},
+		"untagged image":       {"ghcr.io/example/default:latest", "ghcr.io/example/default"},
+		"version":              {"v1.0.0", "v01.0.0"},
+		"short version":        {"v1.0.0", "v1.0"},
+		"numeric prerelease":   {"v1.0.0", "v1.0.0-01"},
+		"size overflow":        {"64MiB", "9223372036854775807GiB"},
+		"duration overflow":    {"1s", "9223372036854775807s"},
+		"artifact destination": {"path: program", "path: ../program"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			m := fixture(t)
-			m["resource.yaml"].Data = []byte(strings.ReplaceAll(string(m["resource.yaml"].Data), replacement.before, replacement.after))
-			if err := resource.Validate(m); err == nil {
+			dir := fixture(t)
+			replace(t, dir, "sample/resource.yaml", pair[0], pair[1])
+			if _, err := resource.LoadManifest(dir); err == nil {
 				t.Fatal("invalid definition accepted")
 			}
 		})
 	}
 }
 
-func TestReadHardlink(t *testing.T) {
-	// Git does not preserve hardlinks, so this case needs a temporary filesystem.
-	dir := t.TempDir()
-	if err := os.CopyFS(dir, os.DirFS("testdata/resource/valid/basic")); err != nil {
-		t.Fatal(err)
+func TestExplicitLimitsAndInlineInput(t *testing.T) {
+	dir := fixture(t)
+	replace(t, dir, "sample/resource.yaml", "memory: 64MiB", "memory: 1GiB\n          stdout-size: 20MiB\n          stderr-size: 21MiB\n          workspace-size: 2GiB\n          artifact-size: 2KiB\n          pids: 256")
+	replace(t, dir, "sample/resource.yaml", "- run: echo hello", "- run: echo hello\n          stdin: {value: hello}")
+	job := load(t, dir).Workflows["main"].Jobs["public"]
+	if job.Limits.Memory != 1<<30 || job.Limits.StdoutSize != 20<<20 || job.Limits.StderrSize != 21<<20 || job.Limits.WorkspaceSize != 2<<30 || job.Limits.ArtifactSize != 2<<10 || job.Limits.PIDs != 256 || string(job.Steps[0].Stdin) != "hello" {
+		t.Fatal(job)
 	}
-	description := filepath.Join(dir, "description.md")
-	if err := os.Remove(description); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Link(filepath.Join(dir, "expected.txt"), description); err != nil {
-		t.Fatal(err)
-	}
-	r, err := resource.Read(os.DirFS(dir))
+}
+
+func TestDecodeRejections(t *testing.T) {
+	original, err := json.Marshal(load(t, fixture(t)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(r.Files["description.md"], r.Files["expected.txt"]) {
-		t.Fatal("hardlinked materials differ")
-	}
-}
-
-func TestSymlinkFixtures(t *testing.T) {
-	for _, name := range []string{"symlink", "directory-symlink", "definition-symlink"} {
-		t.Run(name, func(t *testing.T) {
-			err := resource.Validate(os.DirFS(filepath.Join("testdata/resource/invalid", name)))
-			if !errors.Is(err, fs.ErrNotExist) {
-				t.Fatalf("expected missing file after filtering symlink, got %v", err)
-			}
-		})
-	}
-}
-
-func TestReadIgnoresUnusedSymlinks(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.CopyFS(dir, os.DirFS("testdata/resource/valid/basic")); err != nil {
-		t.Fatal(err)
-	}
-	for name, target := range map[string]string{
-		"file-link": "description.md", "directory-link": ".",
-		"broken-link": "missing", "external-link": t.TempDir(), "cycle": "cycle",
+	for name, mutate := range map[string]func(map[string]any){
+		"old definition":       func(v map[string]any) { v["definition"] = map[string]any{} },
+		"unknown source":       func(v map[string]any) { jsonWorkflow(v)["source"] = "secret" },
+		"empty workflows":      func(v map[string]any) { v["workflows"] = nil },
+		"invalid version":      func(v map[string]any) { v["metadata"].(map[string]any)["version"] = "v1" },
+		"dependency":           func(v map[string]any) { jsonJob(v)["depends"] = []any{"missing"} },
+		"duplicate dependency": func(v map[string]any) { jsonJob(v)["depends"] = []any{"build", "build"} },
+		"visibility":           func(v map[string]any) { jsonJob(v)["visibility"] = "secret" },
+		"timeout":              func(v map[string]any) { jsonStep(v)["timeout"] = 0 },
+		"negative timeout":     func(v map[string]any) { jsonStep(v)["timeout"] = -1 },
+		"timeout overflow":     func(v map[string]any) { jsonStep(v)["timeout"] = 1e30 },
+		"memory":               func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["memory"] = -1 },
+		"missing limits":       func(v map[string]any) { delete(jsonJob(v), "limits") },
+		"exit code":            func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = 256 },
+		"match": func(v map[string]any) {
+			jsonStep(v)["expected"].(map[string]any)["stdout"].(map[string]any)["match"] = "unknown"
+		},
+		"empty steps": func(v map[string]any) { jsonJob(v)["steps"] = []any{} },
 	} {
-		if err := os.Symlink(target, filepath.Join(dir, name)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := resource.Read(os.DirFS(dir)); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestReadZIP(t *testing.T) {
-	for _, linked := range []string{"unused", "description.md", "resource.yaml", "material"} {
-		t.Run(linked, func(t *testing.T) {
-			m := fixture(t)
-			if linked == "material" {
-				m["resource.yaml"].Data = bytes.ReplaceAll(m["resource.yaml"].Data, []byte("description.md"), []byte("material/description.md"))
-			}
-			m[linked] = &fstest.MapFile{Data: []byte("description.md"), Mode: fs.ModeSymlink | 0777}
-			var archive bytes.Buffer
-			writer := zip.NewWriter(&archive)
-			for name, file := range m {
-				header := &zip.FileHeader{Name: name, Method: zip.Deflate}
-				header.SetMode(file.Mode)
-				out, err := writer.CreateHeader(header)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if _, err := out.Write(file.Data); err != nil {
-					t.Fatal(err)
-				}
-			}
-			if err := writer.Close(); err != nil {
+		t.Run(name, func(t *testing.T) {
+			var value map[string]any
+			if err := json.Unmarshal(original, &value); err != nil {
 				t.Fatal(err)
 			}
-			root, err := zip.NewReader(bytes.NewReader(archive.Bytes()), int64(archive.Len()))
+			mutate(value)
+			encoded, err := json.Marshal(value)
 			if err != nil {
 				t.Fatal(err)
 			}
-			r, err := resource.Read(root)
-			if linked != "unused" {
-				if !errors.Is(err, fs.ErrNotExist) {
-					t.Fatalf("expected missing file, got %v", err)
-				}
-				return
+			if _, err := resource.DecodeResource(bytes.NewReader(encoded)); err == nil {
+				t.Fatal("invalid JSON accepted")
 			}
+		})
+	}
+	for _, data := range []string{string(original) + " {}", string(original) + " garbage", "null", "{}"} {
+		if _, err := resource.DecodeResource(strings.NewReader(data)); err == nil {
+			t.Fatal("invalid document accepted")
+		}
+	}
+}
+
+func jsonWorkflow(v map[string]any) map[string]any {
+	return v["workflows"].(map[string]any)["main"].(map[string]any)
+}
+func jsonJob(v map[string]any) map[string]any {
+	return jsonWorkflow(v)["jobs"].(map[string]any)["public"].(map[string]any)
+}
+func jsonStep(v map[string]any) map[string]any {
+	return jsonJob(v)["steps"].([]any)[0].(map[string]any)
+}
+
+func TestFixtures(t *testing.T) {
+	for _, kind := range []string{"resource", "manifest"} {
+		for _, outcome := range []string{"valid", "invalid"} {
+			base := filepath.Join("testdata", kind, outcome)
+			entries, err := os.ReadDir(base)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !bytes.Equal(r.Files["description.md"], m["description.md"].Data) {
-				t.Fatal("ZIP material differs from source")
+			for _, entry := range entries {
+				t.Run(kind+"/"+outcome+"/"+entry.Name(), func(t *testing.T) {
+					_, err := resource.LoadManifest(filepath.Join(base, entry.Name()))
+					if (err == nil) != (outcome == "valid") {
+						t.Fatalf("%s: %v", outcome, err)
+					}
+				})
 			}
-		})
+		}
 	}
 }
 
-// unreadableFS exposes directory entries but fails when opening one file.
-type unreadableFS struct {
-	fs.FS
-	name string
+func TestNestedSharedPresetSymlink(t *testing.T) {
+	dir := fixture(t)
+	if err := os.MkdirAll(filepath.Join(dir, "tasks"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(dir, "sample"), filepath.Join(dir, "tasks/a")); err != nil {
+		t.Fatal(err)
+	}
+	replace(t, dir, "manifest.yaml", "path: sample", "path: tasks/a")
+	write(t, dir, "shared/tool", []byte("#!/bin/sh\necho hello\n"))
+	if err := os.Chmod(filepath.Join(dir, "shared/tool"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("tool", filepath.Join(dir, "shared/link")); err != nil {
+		t.Fatal(err)
+	}
+	replace(t, dir, "tasks/a/resource.yaml", "    description-path: description.md", "    description-path: description.md\n    presets:\n      files:\n        - source: ../../shared/link\n          path: tool\n        - source: description.md\n          path: readme.md")
+	presets := load(t, dir).Workflows["main"].Presets.Files
+	if !presets[0].Executable || presets[1].Executable || !bytes.HasPrefix(presets[0].Content, []byte("#!/bin/sh")) {
+		t.Fatal(presets)
+	}
 }
 
-func (root unreadableFS) Open(name string) (fs.File, error) {
-	if name == root.name {
-		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrPermission}
-	}
-	return root.FS.Open(name)
-}
-
-func TestReadIncludesUnreferencedFilesInMemory(t *testing.T) {
-	m := fixture(t)
-	m["unused.txt"] = &fstest.MapFile{Data: []byte("unused")}
-	if _, err := resource.Read(unreadableFS{FS: m, name: "unused.txt"}); !errors.Is(err, fs.ErrPermission) {
-		t.Fatalf("expected file read failure, got %v", err)
-	}
-	r, err := resource.Read(m)
+func TestYAMLDefaultsWithAnchors(t *testing.T) {
+	dir := fixture(t)
+	data, err := os.ReadFile(filepath.Join(dir, "sample/resource.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := r.Files["unused.txt"]; ok {
-		t.Fatal("unreferenced file returned as material")
-	}
-}
-
-func TestReadAllMaterialKinds(t *testing.T) {
-	m := fixture(t)
-	data := string(m["resource.yaml"].Data)
-	data = strings.Replace(data, "    description-path: description.md", "    description-path: description.md\n    presets:\n      files:\n      - source: material/preset.bin\n        path: include/preset.bin", 1)
-	data = strings.Replace(data, "- run: echo hello", "- run: echo hello\n          stdin:\n            path: material/stdin.bin", 1)
-	m["resource.yaml"].Data = []byte(data)
-	m["material/preset.bin"] = &fstest.MapFile{Data: []byte{0, 255, 1}}
-	m["material/stdin.bin"] = &fstest.MapFile{Data: []byte{255, 0, 2}}
-	r, err := resource.Read(m)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, p := range []string{"description.md", "expected.txt", "material/preset.bin", "material/stdin.bin"} {
-		if !bytes.Equal(r.Files[p], m[p].Data) {
-			t.Fatalf("material not loaded: %s", p)
-		}
-	}
-	for _, p := range []string{"material/preset.bin", "material/stdin.bin"} {
-		saved := m[p]
-		delete(m, p)
-		if err := resource.Validate(m); err == nil {
-			t.Fatalf("missing material accepted: %s", p)
-		}
-		m[p] = saved
-	}
-}
-
-func TestYAMLAnchors(t *testing.T) {
-	m := fixture(t)
-	data := string(m["resource.yaml"].Data)
-	data = strings.Replace(data, "sandbox-image: ghcr.io/example/default:latest", "sandbox-image: &image ghcr.io/example/default:latest", 1)
-	data = strings.ReplaceAll(data, "sandbox-image: ghcr.io/example/default:latest", "sandbox-image: *image")
-	m["resource.yaml"].Data = []byte(data)
-	if err := resource.Validate(m); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestReadExclusions(t *testing.T) {
-	for _, name := range []string{".env", ".git/config", ".github/workflows/check.yml", "node_modules/pkg/index.js", "nested/.hidden/file", "nested/node_modules/pkg/index.js"} {
-		t.Run(name, func(t *testing.T) {
-			m := fixture(t)
-			m[name] = &fstest.MapFile{Data: []byte("excluded")}
-			if _, err := resource.Read(unreadableFS{FS: m, name: name}); err != nil {
-				t.Fatalf("excluded entry was read: %v", err)
-			}
-			m["resource.yaml"].Data = bytes.ReplaceAll(m["resource.yaml"].Data, []byte("description.md"), []byte(name))
-			if _, err := resource.Read(m); !errors.Is(err, fs.ErrNotExist) {
-				t.Fatalf("expected excluded material to be missing, got %v", err)
-			}
-		})
-	}
-}
-
-func TestReadNodeModulesFile(t *testing.T) {
-	m := fixture(t)
-	m["node_modules"] = m["description.md"]
-	m["resource.yaml"].Data = bytes.ReplaceAll(m["resource.yaml"].Data, []byte("description.md"), []byte("node_modules"))
-	if _, err := resource.Read(m); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestReadRejectsSpecialFiles(t *testing.T) {
-	for _, mode := range []fs.FileMode{fs.ModeNamedPipe, fs.ModeSocket, fs.ModeDevice} {
-		m := fixture(t)
-		m["special"] = &fstest.MapFile{Mode: mode}
-		if _, err := resource.Read(m); err == nil || !strings.Contains(err.Error(), "not a regular file") {
-			t.Fatalf("expected special file rejection for %v, got %v", mode, err)
-		}
-	}
-}
-
-func TestReadRejectsDirectoryAsFile(t *testing.T) {
-	for _, name := range []string{"resource.yaml", "description.md", "expected.txt"} {
-		t.Run(name, func(t *testing.T) {
-			m := fixture(t)
-			m[name] = &fstest.MapFile{Mode: fs.ModeDir | 0755}
-			if _, err := resource.Read(m); err == nil || !strings.Contains(err.Error(), "not a regular file") {
-				t.Fatalf("expected directory rejection, got %v", err)
-			}
-		})
+	yaml := strings.Replace(string(data), "sandbox-image: ghcr.io/example/default:latest", "sandbox-image: &image ghcr.io/example/default:latest", 1)
+	yaml = strings.ReplaceAll(yaml, "sandbox-image: ghcr.io/example/default:latest", "sandbox-image: *image")
+	yaml = strings.ReplaceAll(yaml, "        visibility: public\n", "")
+	write(t, dir, "sample/resource.yaml", []byte(yaml))
+	jobs := load(t, dir).Workflows["main"].Jobs
+	if jobs["build"].Visibility != "public" || jobs["public"].Visibility != "public" {
+		t.Fatal(jobs)
 	}
 }

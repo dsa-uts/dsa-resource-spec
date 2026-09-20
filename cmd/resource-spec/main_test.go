@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	resource "github.com/dsa-uts/dsa-resource-spec"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,10 +10,27 @@ import (
 )
 
 func TestCommands(t *testing.T) {
-	var out bytes.Buffer
-	for _, args := range [][]string{{"validate", "../../testdata/resource/valid/basic"}, {"inspect", "../../testdata/resource/valid/basic"}, {"manifest", "../../testdata/manifest/valid/basic"}} {
+	for _, command := range []string{"validate", "manifest", "inspect"} {
+		var out bytes.Buffer
+		args := []string{command, "../../testdata/resource/valid/basic"}
+		if command == "inspect" {
+			args = append(args, "sample")
+		}
 		if err := run(args, &out); err != nil {
 			t.Fatal(err)
+		}
+		if command == "inspect" {
+			if _, err := resource.DecodeResource(&out); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if command == "validate" && out.Len() != 0 {
+			t.Fatal("validate emitted JSON")
+		}
+	}
+	for _, args := range [][]string{nil, {"unknown"}, {"inspect", "../../testdata/resource/valid/basic"}, {"inspect", "../../testdata/resource/valid/basic", "missing"}, {"validate", ".", "extra"}} {
+		if err := run(args, &bytes.Buffer{}); err == nil {
+			t.Fatalf("accepted %v", args)
 		}
 	}
 }
@@ -36,7 +54,11 @@ func TestCLIFixtures(t *testing.T) {
 			for _, entry := range entries {
 				for _, command := range commands {
 					t.Run(command+"/"+outcome+"/"+entry.Name(), func(t *testing.T) {
-						output, err := exec.Command(binary, command, filepath.Join(base, entry.Name())).CombinedOutput()
+						args := []string{command, filepath.Join(base, entry.Name())}
+						if command == "inspect" {
+							args = append(args, "sample")
+						}
+						output, err := exec.Command(binary, args...).CombinedOutput()
 						if outcome == "valid" && err != nil {
 							t.Fatalf("%v\n%s", err, output)
 						}

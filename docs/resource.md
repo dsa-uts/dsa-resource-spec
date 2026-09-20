@@ -1,12 +1,12 @@
 # Resource 仕様
 
-課題を作成するための `resource.yaml` のリファレンス。定義と参照素材を一つのディレクトリに置く。
+課題を作成するための `resource.yaml` のリファレンス。定義を課題ディレクトリに置き、`manifest.yaml` に登録する。参照素材はマニフェストのディレクトリ内で共有できる。
 
 [登録・ビルド手順](publishing.md) · [Backend・Judge の実行規則](runtime.md) · [JSON Schema](../schemas/resource.schema.json)
 
 ## 最小例
 
-素材を含む例は [testdata/resource/valid/basic/resource.yaml](../testdata/resource/valid/basic/resource.yaml) を参照。
+素材を含む例は [testdata/resource/valid/basic/sample/resource.yaml](../testdata/resource/valid/basic/sample/resource.yaml) を参照。
 
 ```yaml
 resource:
@@ -35,7 +35,9 @@ workflows:
 - Resource・Workflow・Job の ID と成果物名は `^[a-z][a-z0-9-]*$`（英小文字で始まる英小文字・数字・ハイフン）。Workflow・Job の map key は ID、`name` は表示名。
 - 未知フィールド、重複した YAML キー、複数の YAML 文書は拒否する。`schema-version` は持たない。
 - `resource.version` は必須の SemVer 文字列（例: `"v1.0.0"`、省略形 `v1` / `v1.2` は不可）。
-- 相対 path は clean POSIX 形式とし、空文字、`.`、`..` component、絶対 path、backslash、NUL、colon、空 component を禁止する。下表の root 外を指してはいけない。課題の取り込みでは symlink を解決せずに除外し、リンクを経由するファイルも取り込まない。`resource.yaml` または参照素材が除外された場合はファイル不存在の検証エラーとする。全階層の `.` で始まるファイル・ディレクトリと `node_modules` ディレクトリも除外する。除外対象以外の、ディレクトリではない非 regular file を拒否する。hardlink は通常ファイルとして扱い、inode の共有は検査しない。
+- 素材の参照は `resource.yaml` のあるディレクトリ基準。`..` と範囲内を指す相対 symlink を許可するが、マニフェストのディレクトリ外と絶対 symlink は拒否する。絶対 path、backslash、NUL、colon は指定できない。明示的に参照された隠しファイルや `node_modules` 内のファイルも読み込む。
+- Preset の配置先・成果物のパスは clean POSIX 相対形式とし、空文字、`.`、`..` component、絶対 path、backslash、NUL、colon、空 component を禁止する。
+- 参照先は通常ファイルのみ。hardlink は通常ファイルとして扱い、inode の共有は検査しない。未参照ファイルは読み込まない。
 
 | パス | 基準となる場所 |
 | --- | --- |
@@ -74,6 +76,8 @@ presets:
 | --- | --- | --- |
 | `source` | 必須 | 課題ルート からの相対 path。 |
 | `path` | 必須 | 読み取り専用の `/preset` 内の配置先 path。 |
+
+読み込み時に `source` の内容と実行可否（いずれかの実行ビットがあるか）を取り込む。
 
 同一 Workflow の `presets.files` 内で `path` が重複する場合は 検証エラー。
 
@@ -175,12 +179,14 @@ limits:
 | --- | --- | --- |
 | `cpu` | 任意 | 当面 `1` 固定。指定する場合も `1` のみ許可。 |
 | `memory` | 必須 | Job のメモリ上限。例: `512MiB`。 |
-| `pids` | 任意 | 最大プロセス数。1 以上の整数。 |
+| `pids` | 任意 | 最大プロセス数。1 以上の整数。省略時 `128`。 |
 | `step-timeout` | 必須 | Step timeout の既定値。例: `"2s"`、`"300ms"`。 |
-| `stdout-size` | 任意 | stdout capture 上限。 |
-| `stderr-size` | 任意 | stderr capture 上限。 |
-| `workspace-size` | 任意 | 作業領域の容量上限。省略時 `256MiB`。 |
+| `stdout-size` | 任意 | stdout capture 上限。省略時 `10MiB`。 |
+| `stderr-size` | 任意 | stderr capture 上限。省略時 `10MiB`。 |
+| `workspace-size` | 任意 | 作業領域の容量上限。省略時 `128MiB`。 |
 | `artifact-size` | 任意 | 1 成果物ファイル あたりの保存上限。省略時 `1MiB`。 |
+
+これらは省略時の既定値であり、指定可能な絶対上限ではない。stdout / stderr に `20MiB` なども指定できる。サイズは符号付き64 bit整数のバイト数に収まる必要がある。
 
 ### タイムアウトの書式
 

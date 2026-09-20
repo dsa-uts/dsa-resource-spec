@@ -2,12 +2,13 @@ package resource
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
+	"os"
 	"strings"
-
-	"github.com/spf13/afero"
 )
 
+// relative validates runtime destinations, not authoring references.
 func relative(p string) error {
 	if p == "." || !fs.ValidPath(p) || strings.ContainsAny(p, "\\:\x00") {
 		return fmt.Errorf("invalid relative path %q", p)
@@ -15,48 +16,38 @@ func relative(p string) error {
 	return nil
 }
 
-// readFiles loads regular files, excluding symbolic links, dot names and node_modules directories.
-// The caller must supply stable entries with accurate file types.
-func readFiles(root fs.FS) (afero.Fs, error) {
-	files := afero.NewMemMapFs()
-	err := fs.WalkDir(root, ".", func(name string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if name != "." && (strings.HasPrefix(entry.Name(), ".") || entry.IsDir() && entry.Name() == "node_modules") {
-			if entry.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if entry.Type()&fs.ModeSymlink != 0 {
-			return nil
-		}
-		if entry.IsDir() {
-			return files.MkdirAll(name, 0755)
-		}
-		if !entry.Type().IsRegular() {
-			return fmt.Errorf("%s: not a regular file", name)
-		}
-		data, err := fs.ReadFile(root, name)
-		if err != nil {
-			return err
-		}
-		return afero.WriteFile(files, name, data, 0644)
-	})
-	return files, err
-}
-
-func readFile(files afero.Fs, name string) ([]byte, error) {
-	if err := relative(name); err != nil {
-		return nil, err
+func readMaterial(root *os.Root, name string) ([]byte, bool, error) {
+	// Leave .. and symlink resolution to os.Root. Cleaning the path here would
+	// change the meaning of a symlink followed by .. .
+	if name == "" || strings.HasPrefix(name, "/") || strings.ContainsAny(name, "\\:\x00") {
+		return nil, false, fmt.Errorf("invalid source path %q", name)
 	}
-	info, err := files.Stat(name)
+	info, err := root.Stat(name)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("%s: not a regular file", name)
+		return nil, false, fmt.Errorf("%s: not a regular file", name)
 	}
-	return afero.ReadFile(files, name)
+	file, err := root.Open(name)
+	if err != nil {
+		return nil, false, err
+	}
+	defer file.Close()
+	info, err = file.Stat()
+	if err != nil {
+		return nil, false, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, false, fmt.Errorf("%s: not a regular file", name)
+	}
+	content, err := io.ReadAll(file)
+	return content, info.Mode().Perm()&0111 != 0, err
+}
+
+func sourceMaterial(root *os.Root, dir, name string) ([]byte, bool, error) {
+	if name == "" || strings.HasPrefix(name, "/") || strings.ContainsAny(name, "\\:\x00") {
+		return nil, false, fmt.Errorf("invalid source path %q", name)
+	}
+	return readMaterial(root, dir+"/"+name)
 }

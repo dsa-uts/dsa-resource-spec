@@ -1,90 +1,58 @@
-// Package resource validates and eagerly reads locally available resource definitions.
+// Package resource loads author manifests and validates self-contained resources.
 package resource
 
 import (
+	"encoding/json"
 	"fmt"
-	"io/fs"
-
-	"github.com/spf13/afero"
+	"io"
+	"os"
 )
 
-// Resource holds the validated definition and every referenced file, keyed by its resource-relative path.
-// It does not retain the input filesystem or perform subsequent I/O.
+// Resource contains resolved data and retains neither source paths nor file handles.
+// Marshal it with encoding/json to save or distribute it.
 type Resource struct {
-	Definition Definition
-	Files      map[string][]byte
+	Metadata  Metadata            `json:"metadata"`
+	Workflows map[string]Workflow `json:"workflows"`
 }
 
-// Validate performs the same definition and referenced-file checks as Read.
-func Validate(root fs.FS) error {
-	_, err := Read(root)
-	return err
+// DecodeResource restores one resolved JSON resource, rejecting unknown fields
+// and invalid runtime data. It does not read files or apply authoring defaults.
+func DecodeResource(r io.Reader) (*Resource, error) {
+	decoder := json.NewDecoder(r)
+	decoder.DisallowUnknownFields()
+	var result Resource
+	if err := decoder.Decode(&result); err != nil {
+		return nil, err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, fmt.Errorf("expected one JSON document")
+	}
+	if err := validateResource(&result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
-// Read loads regular files, excluding symbolic links, dot names and node_modules directories,
-// then validates the definition and returns its referenced materials.
-// The caller must supply a stable filesystem throughout the call.
-func Read(root fs.FS) (*Resource, error) {
-	files, err := readFiles(root)
+func loadResource(root *os.Root, dir string) (*Resource, error) {
+	data, _, err := readMaterial(root, dir+"/resource.yaml")
 	if err != nil {
 		return nil, err
 	}
-	return read(files)
-}
-
-func read(files afero.Fs) (*Resource, error) {
-	data, err := readFile(files, "resource.yaml")
-	if err != nil {
-		return nil, err
-	}
-	definition, err := decodeDefinition(data)
+	input, err := decodeDefinition(data)
 	if err != nil {
 		return nil, fmt.Errorf("resource.yaml: %w", err)
 	}
-	resource := &Resource{Definition: *definition, Files: map[string][]byte{}}
-	for id, workflow := range definition.Workflows {
-		if err := validateWorkflow(workflow); err != nil {
-			return nil, fmt.Errorf("workflow %s: %w", id, err)
-		}
-		if err := resource.readMaterials(files, workflow); err != nil {
-			return nil, fmt.Errorf("workflow %s: %w", id, err)
-		}
-	}
-	return resource, nil
-}
-
-func (r *Resource) readMaterials(files afero.Fs, workflow Workflow) error {
-	paths := []string{workflow.DescriptionPath}
-	if workflow.Presets != nil {
-		for _, preset := range workflow.Presets.Files {
-			paths = append(paths, preset.Source)
-		}
-	}
-	for _, job := range workflow.Jobs {
-		for _, step := range job.Steps {
-			streams := []*Stream{step.Stdin}
-			if step.Expected != nil {
-				streams = append(streams, step.Expected.Stdout, step.Expected.Stderr)
-			}
-			for _, stream := range streams {
-				if stream != nil {
-					paths = append(paths, stream.Path)
-				}
-			}
-		}
-	}
-	for _, name := range paths {
-		if name == "" {
-			continue
-		}
-		if _, loaded := r.Files[name]; loaded {
-			continue
-		}
-		data, err := readFile(files, name)
+	result := &Resource{Metadata: Metadata(input.Resource), Workflows: make(map[string]Workflow)}
+	for id, raw := range input.Workflows {
+		workflow, err := resolveWorkflow(root, dir, raw)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("workflow %s: %w", id, err)
 		}
-		r.Files[name] = data
+		result.Workflows[id] = workflow
 	}
-	return nil
+	if err := validateResource(result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
