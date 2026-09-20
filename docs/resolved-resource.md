@@ -9,7 +9,7 @@
 | `Resource.Metadata` | `metadata`: `id`、`name`、`version` |
 | `Resource.Workflows` | `workflows`: ID をキーにする map |
 | `Workflow.Description` | `description`: Markdown の文字列 |
-| `Workflow.Presets.Files` | `presets.files`: `path`（配置先）、`content`（Base64）、`executable`（boolean） |
+| `Workflow.Presets` | `presets`: `path`（配置先）、`content`（Base64）、`executable`（boolean）を持つ配列（未指定は `null`） |
 | `Workflow.Jobs` | `jobs`: ID をキーにする map。順序は依存関係で決まる |
 | `Job.Limits` | `limits`: `cpu`、`pids` は整数、`memory` と各 `*-size` はバイト数の整数（Go では `int64`） |
 | `Step.Timeout` | `timeout`: ナノ秒の整数（Go では `time.Duration`）。2秒は `2000000000` |

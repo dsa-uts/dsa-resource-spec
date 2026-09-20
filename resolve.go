@@ -49,13 +49,13 @@ func resolveWorkflow(root *os.Root, dir string, raw rawWorkflow) (Workflow, erro
 		result.Description = string(content)
 	}
 	if raw.Presets != nil {
-		result.Presets = &Presets{Files: make([]Preset, 0, len(raw.Presets.Files))}
+		result.Presets = make([]Preset, 0, len(raw.Presets.Files))
 		for _, preset := range raw.Presets.Files {
 			content, executable, err := readMaterial(root, dir+"/"+preset.Source)
 			if err != nil {
 				return result, err
 			}
-			result.Presets.Files = append(result.Presets.Files, Preset{Path: preset.Path, Content: content, Executable: executable})
+			result.Presets = append(result.Presets, Preset{Path: preset.Path, Content: content, Executable: executable})
 		}
 	}
 	for id, rawJob := range raw.Jobs {

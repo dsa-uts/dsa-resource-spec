@@ -11,12 +11,8 @@ type Metadata struct {
 type Workflow struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
-	Presets     *Presets       `json:"presets"`
+	Presets     []Preset       `json:"presets"`
 	Jobs        map[string]Job `json:"jobs"`
-}
-
-type Presets struct {
-	Files []Preset `json:"files"`
 }
 
 type Preset struct {

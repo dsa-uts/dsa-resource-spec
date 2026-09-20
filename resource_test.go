@@ -114,7 +114,7 @@ func TestSharedMaterials(t *testing.T) {
 	replace(t, dir, "sample/resource.yaml", "path: expected.txt", "value: ''")
 	r := load(t, dir)
 	workflow := r.Workflows["main"]
-	preset := workflow.Presets.Files[0]
+	preset := workflow.Presets[0]
 	step := workflow.Jobs["public"].Steps[0]
 	if workflow.Description != "# Shared\n" || !preset.Executable || preset.Path != "tools/program" || !bytes.Equal(preset.Content, []byte{0, 255, 1}) || !bytes.Equal(step.Stdin, preset.Content) || step.Timeout != 300*time.Millisecond {
 		t.Fatal(workflow)
@@ -306,7 +306,7 @@ func TestNestedSharedPresetSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	replace(t, dir, "tasks/a/resource.yaml", "    description-path: description.md", "    description-path: description.md\n    presets:\n      files:\n        - source: ../../shared/link\n          path: tool\n        - source: description.md\n          path: readme.md")
-	presets := load(t, dir).Workflows["main"].Presets.Files
+	presets := load(t, dir).Workflows["main"].Presets
 	if !presets[0].Executable || presets[1].Executable || !bytes.HasPrefix(presets[0].Content, []byte("#!/bin/sh")) {
 		t.Fatal(presets)
 	}

@@ -36,17 +36,15 @@ func validateWorkflow(workflow Workflow) error {
 	if len(workflow.Jobs) == 0 {
 		return fmt.Errorf("workflow requires jobs")
 	}
-	if workflow.Presets != nil {
-		paths := map[string]bool{}
-		for _, preset := range workflow.Presets.Files {
-			if err := validateRuntimePath(preset.Path); err != nil {
-				return err
-			}
-			if paths[preset.Path] {
-				return fmt.Errorf("duplicate Preset path: %s", preset.Path)
-			}
-			paths[preset.Path] = true
+	paths := map[string]bool{}
+	for _, preset := range workflow.Presets {
+		if err := validateRuntimePath(preset.Path); err != nil {
+			return err
 		}
+		if paths[preset.Path] {
+			return fmt.Errorf("duplicate Preset path: %s", preset.Path)
+		}
+		paths[preset.Path] = true
 	}
 	for id, job := range workflow.Jobs {
 		if err := validateJob(id, job, workflow.Jobs); err != nil {
