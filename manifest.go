@@ -70,7 +70,7 @@ func LoadManifest(dir string) (*Manifest, error) {
 			return nil, fmt.Errorf("duplicate resource ID/path")
 		}
 		ids[entry.ID], paths[entry.Path] = true, true
-		if err := relative(entry.Path); err != nil {
+		if err := validateCleanRelativePath(entry.Path); err != nil {
 			return nil, err
 		}
 		resource, err := loadResource(root, entry.Path)
@@ -88,10 +88,10 @@ func LoadManifest(dir string) (*Manifest, error) {
 func validateBuilds(images map[string]ImageBuild) error {
 	repositories := map[string]bool{}
 	for _, build := range images {
-		if err := relative(build.Context); build.Context != "." && err != nil {
+		if err := validateCleanRelativePath(build.Context); build.Context != "." && err != nil {
 			return err
 		}
-		if err := relative(build.Dockerfile); err != nil {
+		if err := validateCleanRelativePath(build.Dockerfile); err != nil {
 			return err
 		}
 		repository, err := reference.ParseNamed(build.Image)

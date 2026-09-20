@@ -39,7 +39,7 @@ func validateWorkflow(workflow Workflow) error {
 	if workflow.Presets != nil {
 		paths := map[string]bool{}
 		for _, preset := range workflow.Presets.Files {
-			if err := relative(preset.Path); err != nil {
+			if err := validateCleanRelativePath(preset.Path); err != nil {
 				return err
 			}
 			if paths[preset.Path] {
@@ -134,7 +134,7 @@ func validateArtifacts(job Job, jobs map[string]Job) error {
 			return fmt.Errorf("invalid artifact visibility")
 		}
 
-		if err := relative(output.Path); err != nil {
+		if err := validateCleanRelativePath(output.Path); err != nil {
 			return err
 		}
 		if names[output.Name] || paths[output.Path] {
@@ -148,7 +148,7 @@ func validateArtifacts(job Job, jobs map[string]Job) error {
 		if !identifier.MatchString(input.Name) {
 			return fmt.Errorf("invalid artifact name")
 		}
-		if err := relative(input.Path); err != nil {
+		if err := validateCleanRelativePath(input.Path); err != nil {
 			return err
 		}
 		if paths[input.Path] {

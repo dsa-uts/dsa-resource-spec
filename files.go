@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// relative validates runtime destinations, not authoring references.
-func relative(p string) error {
+// validateCleanRelativePath validates runtime destinations, not authoring references.
+func validateCleanRelativePath(p string) error {
 	if p == "." || !fs.ValidPath(p) || strings.ContainsAny(p, "\\:\x00") {
 		return fmt.Errorf("invalid relative path %q", p)
 	}
