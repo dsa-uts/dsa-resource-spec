@@ -1,12 +1,12 @@
 # Resource 仕様
 
-課題を作成するための `resource.yaml` のリファレンス。定義と参照素材を一つのディレクトリに置く。
+課題を作成するための `resource.yaml` のリファレンス。定義を課題ディレクトリに置き、`manifest.yaml` に登録する。参照素材はマニフェストのディレクトリ内で共有できる。
 
-[公開手順](publishing.md) · [Backend・Judge の実行規則](runtime.md) · [JSON Schema](../schemas/resource.schema.json)
+[登録・ビルド手順](publishing.md) · [Backend・Judge の実行規則](runtime.md) · [JSON Schema](../schemas/resource.schema.json)
 
 ## 最小例
 
-素材を含む例は [testdata/valid/resource.yaml](../testdata/valid/resource.yaml) を参照。
+素材を含む例は [testdata/cli/valid/basic/input/sample/resource.yaml](../testdata/cli/valid/basic/input/sample/resource.yaml) を参照。
 
 ```yaml
 resource:
@@ -34,14 +34,16 @@ workflows:
 
 - Resource・Workflow・Job の ID と成果物名は `^[a-z][a-z0-9-]*$`（英小文字で始まる英小文字・数字・ハイフン）。Workflow・Job の map key は ID、`name` は表示名。
 - 未知フィールド、重複した YAML キー、複数の YAML 文書は拒否する。`schema-version` は持たない。
-- `resource.version` は必須の SemVer 文字列（例: `"v1.0.0"`、省略形 `v1` / `v1.2` は不可）。公開時の更新規則は [公開手順](publishing.md#公開と再実行) を参照。
-- 相対 path は clean POSIX 形式とし、空文字、`.`、`..` component、絶対 path、backslash、NUL、colon、空 component を禁止する。下表の root 外を指してはいけない。symlink と非 regular file を拒否し、OS が link count を提供する場合は hardlink も拒否する。
+- `resource.version` は必須の SemVer 文字列（例: `"v1.0.0"`、省略形 `v1` / `v1.2` は不可）。
+- 素材の参照は `resource.yaml` のあるディレクトリ基準。`..` と範囲内を指す相対 symlink を許可するが、マニフェストのディレクトリ外と絶対 symlink は拒否する。絶対 path、backslash、NUL、colon は指定できない。明示的に参照された隠しファイルや `node_modules` 内のファイルも読み込む。
+- Preset の配置先・成果物のパスは clean POSIX 相対形式とし、空文字、`.`、`..` component、絶対 path、backslash、NUL、colon、空 component を禁止する。
+- 参照先は通常ファイルのみ。hardlink は通常ファイルとして扱い、inode の共有は検査しない。未参照ファイルは読み込まない。
 
 | パス | 基準となる場所 |
 | --- | --- |
 | `description-path`、`presets.files[].source`、`stdin.path`、`expected.*.path` | `resource.yaml` を置いた 課題ディレクトリ |
 | `presets.files[].path` | 読み取り専用の `/preset` |
-| `artifacts.*[].path` | 作業領域（`/workspace`） |
+| `artifacts.*[].path` | 作業領域 |
 
 ## 課題情報
 
@@ -75,6 +77,8 @@ presets:
 | `source` | 必須 | 課題ルート からの相対 path。 |
 | `path` | 必須 | 読み取り専用の `/preset` 内の配置先 path。 |
 
+読み込み時に `source` の内容と実行可否（いずれかの実行ビットがあるか）を取り込む。
+
 同一 Workflow の `presets.files` 内で `path` が重複する場合は 検証エラー。
 
 Preset は変更できない `/preset` に配置する。secret ではないため、非公開のテスト入力は `stdin.path` を使う。配置と保護の規則は [ファイルの配置](runtime.md#ファイルの配置と回収) を参照。
@@ -86,21 +90,20 @@ Job は独立した sandbox で実行する。同じ Job の Step は作業領�
 | フィールド | 必須 | 内容 |
 | --- | --- | --- |
 | `name` | 任意 | 表示名。 |
-| `visibility` | 任意 | `public` または `private`。省略時 `private`(既定で非公開)。 |
+| `visibility` | 任意 | `public` または `private`。省略時 `public`(既定で公開)。 |
 | `depends` | 任意 | 先行して完了している必要がある Job ID 配列。省略時 `[]`。 |
 | `sandbox-image` | 必須 | タグまたは digest を含む完全なイメージ参照。 |
-| `working-directory` | 任意 | Step の作業ディレクトリ。`/workspace` またはその配下の絶対パス。省略時 `/workspace`。 |
 | `limits` | 必須 | 使用量と実行時間の上限。 |
 | `artifacts` | 任意 | Job 間で明示的に受け渡す Artifact。 |
 | `steps` | 必須 | 1 個以上の Step を実行順に並べた配列。 |
 
-`working-directory` の各階層名は英数字・`_`・`.`・`-` のみ。`.`・`..` の階層や末尾の `/` は不可。
+各 Step は Job の作業領域をカレントディレクトリとして開始する。作業領域の絶対パスは Judge が決める。必要なら `run` 内で `cd` する。Step 内の `cd` は次の Step に引き継がない。
 
 実行権限と結果の公開範囲は [実行規則](runtime.md#実行権限と順序) を参照。
 
 ### 実行イメージ
 
-Job の `sandbox-image` は `ghcr.io/example/sandbox:latest` や `ghcr.io/example/sandbox@sha256:<digest>` の形式を使う。レジストリを含み、タグまたは digest が必須。validator はレジストリへ接続しない。公開時の digest 固定は [公開手順](publishing.md#公開と再実行) を参照。
+Job の `sandbox-image` は `ghcr.io/example/sandbox:latest` や `ghcr.io/example/sandbox@sha256:<digest>` の形式を使う。レジストリを含み、タグまたは digest が必須。validator はレジストリへ接続しない。
 
 ## ジョブ間のファイル受け渡し
 
@@ -132,9 +135,9 @@ jobs:
 | --- | --- | --- |
 | `artifacts.inputs[].from-job` | 必須 | 成果物を生成する Job の ID。同一 Workflow 内のみ指定可。 |
 | `artifacts.inputs[].name` | 必須 | 生成元 Job の成果物名。 |
-| `artifacts.inputs[].path` | 必須 | 作業領域（`/workspace`） 内の配置先の通常ファイルのパス。 |
+| `artifacts.inputs[].path` | 必須 | 作業領域内の配置先の通常ファイルのパス。 |
 | `artifacts.outputs[].name` | 必須 | 同一 Job 内で一意な Artifact name。 |
-| `artifacts.outputs[].path` | 必須 | 作業領域（`/workspace`） 内の回収元の通常ファイルのパス。 |
+| `artifacts.outputs[].path` | 必須 | 作業領域内の回収元の通常ファイルのパス。 |
 | `artifacts.outputs[].visibility` | 任意 | `public` または `private`。省略時 `private`(既定で非公開)。 |
 | `artifacts.outputs[].content-type` | public の場合 | 配信時の `Content-Type`。`private` では指定禁止。 |
 
@@ -174,14 +177,16 @@ limits:
 
 | フィールド | 必須 | 内容 |
 | --- | --- | --- |
-| `cpu` | 任意 | 当面 `1` 固定。指定する場合も `1` のみ許可。 |
-| `memory` | 必須 | Job のメモリ上限。例: `512MiB`。 |
-| `pids` | 任意 | 最大プロセス数。1 以上の整数。 |
+| `cpu` | 任意 | CPU 上限。1 以上の整数。省略時 `1`。 |
+| `memory` | 必須 | Job のメモリ上限。例: `512MiB`。省略時 `128MiB` |
+| `pids` | 任意 | 最大プロセス数。1 以上の整数。省略時 `128`。 |
 | `step-timeout` | 必須 | Step timeout の既定値。例: `"2s"`、`"300ms"`。 |
-| `stdout-size` | 任意 | stdout capture 上限。 |
-| `stderr-size` | 任意 | stderr capture 上限。 |
-| `workspace-size` | 任意 | 作業領域（`/workspace`） の容量上限。省略時 `256MiB`。 |
+| `stdout-size` | 任意 | stdout capture 上限。省略時 `10MiB`。 |
+| `stderr-size` | 任意 | stderr capture 上限。省略時 `10MiB`。 |
+| `workspace-size` | 任意 | 作業領域の容量上限。省略時 `128MiB`。 |
 | `artifact-size` | 任意 | 1 成果物ファイル あたりの保存上限。省略時 `1MiB`。 |
+
+これらは省略時の既定値であり、指定可能な絶対上限ではない。stdout / stderr に `20MiB` なども指定できる。サイズは符号付き64 bit整数のバイト数に収まる必要がある。
 
 ### タイムアウトの書式
 
@@ -218,7 +223,7 @@ steps:
 
 `compile: true` は失敗時のステータスを CE にする指定であり、`expected` 等による成功・失敗の判定条件は変更しない。`false` または省略時は通常の失敗判定を使う。ステータスの判定・記録は Judge が行う。
 
-`expected.exit-code` は `0..255` の整数で、省略時 `0`。`expected.stdout` と `expected.stderr` は省略時、比較しない。
+`expected.exit-code` は `0..255` の整数で、省略時は終了コードをチェックしない。正常終了を期待する場合は `exit-code: 0` を明示する。`expected.stdout` と `expected.stderr` は省略時、比較しない。
 
 ### 標準入力と期待する出力
 
@@ -239,4 +244,4 @@ expected:
 
 期待出力には `match` も必須。`exact` は完全一致、`easy` は空白を正規化、`sorted` はさらに行内の要素順を無視する。厳密な手順は [比較規則](runtime.md#出力の比較) を参照。
 
-`stdin.path` の内容は Judge が標準入力に流し、期待値ファイルは Judge 内で比較に使う。どちらも 作業領域（`/workspace`） に配置しない。
+`stdin.path` の内容は Judge が標準入力に流し、期待値ファイルは Judge 内で比較に使う。どちらも作業領域に配置しない。

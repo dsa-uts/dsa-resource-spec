@@ -1,0 +1,13 @@
+{
+  "resources": [],
+  "sandbox-images": {
+    "default": {
+      "context": "./images",
+      "dockerfile": "./images/Dockerfile",
+      "image": "registry.example.com/example/default:v1",
+      "platforms": [
+        "linux/amd64"
+      ]
+    }
+  }
+}

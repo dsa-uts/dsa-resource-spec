@@ -1,49 +1,49 @@
 package resource
 
 import (
-	"bytes"
 	_ "embed"
+	"encoding/json"
 	"fmt"
-	"io/fs"
-	"path"
+	"os"
 	"sync"
 
-	"github.com/distribution/reference"
-	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/google/jsonschema-go/jsonschema"
 )
 
-// Manifest is the author/CI index. It is not required when reading a release ZIP.
+// Manifest contains resolved resources in registration order and CI image build settings.
 type Manifest struct {
-	Resources     []ResourceEntry       `yaml:"resources" json:"resources"`
-	SandboxImages map[string]ImageBuild `yaml:"sandbox-images" json:"sandbox-images"`
+	Resources     []Resource            `json:"resources"`
+	SandboxImages map[string]ImageBuild `json:"sandbox-images"`
+}
+type manifestInput struct {
+	Resources     []resourceEntry          `yaml:"resources"`
+	SandboxImages map[string]rawImageBuild `yaml:"sandbox-images"`
 }
 
-type ResourceEntry struct {
-	ID   string `yaml:"id" json:"id"`
-	Path string `yaml:"path" json:"path"`
+type resourceEntry struct {
+	ID   string `yaml:"id"`
+	Path string `yaml:"path"` // Resource directory relative to the manifest root.
 }
 
-type ImageBuild struct {
-	Context    string   `yaml:"context" json:"context"`
-	Dockerfile string   `yaml:"dockerfile" json:"dockerfile"`
-	Image      string   `yaml:"image" json:"image"`
-	Platforms  []string `yaml:"platforms" json:"platforms"`
-}
-
-//go:embed schemas/resources.schema.json
+//go:embed schemas/manifest.schema.json
 var manifestSchemaBytes []byte
-var manifestSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
-	c := jsonschema.NewCompiler()
-	if err := c.AddResource("manifest.json", bytes.NewReader(manifestSchemaBytes)); err != nil {
+var manifestSchema = sync.OnceValues(func() (*jsonschema.Resolved, error) {
+	var schema jsonschema.Schema
+	if err := json.Unmarshal(manifestSchemaBytes, &schema); err != nil {
 		return nil, err
 	}
-	return c.Compile("manifest.json")
+	return schema.Resolve(nil)
 })
 
-// ReadManifest validates the author index, resources and image build configuration.
-// It never builds images, contacts registries, or checks release history.
-func ReadManifest(root fs.FS) (*Manifest, error) {
-	data, err := readRegular(root, "resources.yaml")
+// LoadManifest validates manifest.yaml and resolves every registered resource.
+// The caller must keep the input directory stable throughout the call.
+func LoadManifest(dir string) (*Manifest, error) {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	data, _, err := readMaterial(root, "manifest.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -51,68 +51,61 @@ func ReadManifest(root fs.FS) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	var manifest Manifest
-	if err := decodeYAML(data, schema, &manifest); err != nil {
-		return nil, fmt.Errorf("resources.yaml: %w", err)
+	var input manifestInput
+	if err := decodeYAML(data, schema, &input); err != nil {
+		return nil, fmt.Errorf("manifest.yaml: %w", err)
 	}
-	if err := validateResourceEntries(root, manifest.Resources); err != nil {
+	images := make(map[string]ImageBuild, len(input.SandboxImages))
+	for id, build := range input.SandboxImages {
+		images[id] = ImageBuild(build)
+	}
+	if err := validateBuilds(root, images); err != nil {
 		return nil, err
 	}
-	if err := validateBuilds(manifest.SandboxImages); err != nil {
-		return nil, err
-	}
-	return &manifest, nil
-}
-
-func validateResourceEntries(root fs.FS, entries []ResourceEntry) error {
+	manifest := &Manifest{Resources: make([]Resource, 0, len(input.Resources)), SandboxImages: images}
 	ids, paths := map[string]bool{}, map[string]bool{}
-	for _, entry := range entries {
+	for _, entry := range input.Resources {
 		if ids[entry.ID] || paths[entry.Path] {
-			return fmt.Errorf("invalid or duplicate Resource ID/path")
+			return nil, fmt.Errorf("duplicate resource ID/path")
 		}
-		ids[entry.ID] = true
-		paths[entry.Path] = true
-		if err := relative(entry.Path); err != nil {
-			return err
+		ids[entry.ID], paths[entry.Path] = true, true
+		if err := validateSourcePath(entry.Path); err != nil {
+			return nil, err
 		}
-		if path.Base(entry.Path) != "resource.yaml" || path.Dir(entry.Path) == "." {
-			return fmt.Errorf("Resource requires dedicated directory/resource.yaml")
-		}
-		if _, err := readRegular(root, entry.Path); err != nil {
-			return err
-		}
-		resourceFS, err := fs.Sub(root, path.Dir(entry.Path))
+		resource, err := loadResource(root, entry.Path)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("%s: %w", entry.Path, err)
 		}
-		resource, err := Read(resourceFS)
-		if err != nil {
-			return fmt.Errorf("%s: %w", entry.Path, err)
+		if resource.Metadata.ID != entry.ID {
+			return nil, fmt.Errorf("resource ID mismatch: %s", entry.ID)
 		}
-		if resource.Definition.Resource.ID != entry.ID {
-			return fmt.Errorf("Resource ID mismatch: %s", entry.ID)
-		}
+		manifest.Resources = append(manifest.Resources, *resource)
 	}
-	return nil
+	return manifest, nil
 }
 
-func validateBuilds(images map[string]ImageBuild) error {
-	repositories := map[string]bool{}
-	for _, build := range images {
-		if err := relative(build.Context); err != nil {
-			return err
+func validateBuilds(root *os.Root, images map[string]ImageBuild) error {
+	for id, build := range images {
+		if err := validateSourcePath(build.Context); err != nil {
+			return fmt.Errorf("sandbox-images.%s.context: %w", id, err)
 		}
-		if err := relative(build.Dockerfile); err != nil {
-			return err
+		if err := validateSourcePath(build.Dockerfile); err != nil {
+			return fmt.Errorf("sandbox-images.%s.dockerfile: %w", id, err)
 		}
-		repository, err := reference.ParseNamed(build.Image)
-		if err != nil || !reference.IsNameOnly(repository) || reference.Domain(repository) != "ghcr.io" {
-			return fmt.Errorf("invalid GHCR build repository: %s", build.Image)
+		context, err := root.Stat(build.Context)
+		if err != nil {
+			return fmt.Errorf("sandbox-images.%s.context: %w", id, err)
 		}
-		if repositories[build.Image] {
-			return fmt.Errorf("duplicate build repository: %s", build.Image)
+		if !context.IsDir() {
+			return fmt.Errorf("sandbox-images.%s.context: %q: not a directory", id, build.Context)
 		}
-		repositories[build.Image] = true
+		dockerfile, err := root.Stat(build.Dockerfile)
+		if err != nil {
+			return fmt.Errorf("sandbox-images.%s.dockerfile: %w", id, err)
+		}
+		if !dockerfile.Mode().IsRegular() {
+			return fmt.Errorf("sandbox-images.%s.dockerfile: %q: not a regular file", id, build.Dockerfile)
+		}
 	}
 	return nil
 }

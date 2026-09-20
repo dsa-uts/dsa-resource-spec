@@ -2,167 +2,112 @@ package resource_test
 
 import (
 	"bytes"
-	"io/fs"
+	"encoding/json"
+	resource "github.com/dsa-uts/dsa-resource-spec"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
-	"testing/fstest"
-
-	resource "github.com/dsa-uts/dsa-resource-spec"
 )
 
-func fixture(t *testing.T) fstest.MapFS {
-	t.Helper()
-	m := fstest.MapFS{}
-	err := fs.WalkDir(os.DirFS("testdata/valid"), ".", func(p string, e fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !e.IsDir() {
-			b, err := os.ReadFile(filepath.Join("testdata/valid", p))
-			if err != nil {
-				return err
+func TestDecodeRejections(t *testing.T) {
+	original, err := os.ReadFile("testdata/cli/valid/basic/want/show/sample.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, mutate := range map[string]func(map[string]any){
+		"old definition":       func(v map[string]any) { v["definition"] = map[string]any{} },
+		"unknown source":       func(v map[string]any) { jsonWorkflow(v)["source"] = "secret" },
+		"empty workflows":      func(v map[string]any) { v["workflows"] = nil },
+		"invalid version":      func(v map[string]any) { v["metadata"].(map[string]any)["version"] = "v1" },
+		"dependency":           func(v map[string]any) { jsonJob(v)["depends"] = []any{"missing"} },
+		"duplicate dependency": func(v map[string]any) { jsonJob(v)["depends"] = []any{"build", "build"} },
+		"visibility":           func(v map[string]any) { jsonJob(v)["visibility"] = "secret" },
+		"timeout":              func(v map[string]any) { jsonStep(v)["timeout"] = 0 },
+		"negative timeout":     func(v map[string]any) { jsonStep(v)["timeout"] = -1 },
+		"timeout overflow":     func(v map[string]any) { jsonStep(v)["timeout"] = 1e30 },
+		"memory":               func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["memory"] = -1 },
+		"missing limits":       func(v map[string]any) { delete(jsonJob(v), "limits") },
+		"zero CPU":             func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = 0 },
+		"negative CPU":         func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = -1 },
+		"fractional CPU":       func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = 1.5 },
+		"exit code":            func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = 256 },
+		"negative exit code":   func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = -1 },
+		"match": func(v map[string]any) {
+			jsonStep(v)["expected"].(map[string]any)["stdout"].(map[string]any)["match"] = "unknown"
+		},
+		"empty steps": func(v map[string]any) { jsonJob(v)["steps"] = []any{} },
+	} {
+		t.Run(name, func(t *testing.T) {
+			var value map[string]any
+			if err := json.Unmarshal(original, &value); err != nil {
+				t.Fatal(err)
 			}
-			m[p] = &fstest.MapFile{Data: b, Mode: 0644}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return m
-}
-
-func TestRead(t *testing.T) {
-	m := fixture(t)
-	r, err := resource.Read(m)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.Definition.Resource.Version != "v1.0.0" {
-		t.Fatal(r.Definition.Resource)
-	}
-	if string(r.Files["description.md"]) == "" {
-		t.Fatal("missing description")
-	}
-	delete(m, "description.md")
-	if len(r.Files["description.md"]) == 0 {
-		t.Fatal("reader retained filesystem")
-	}
-}
-
-func TestFixtures(t *testing.T) {
-	entries, err := os.ReadDir("testdata/invalid")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		t.Run(e.Name(), func(t *testing.T) {
-			if e.Name() == "id-mismatch" || e.Name() == "duplicate-yaml-key" {
-				t.Skip("manifest-only constraint; covered by publisher validation")
-			}
-			m := fixture(t)
-			b, err := os.ReadFile(filepath.Join("testdata/invalid", e.Name(), "sample/resource.yaml"))
+			mutate(value)
+			encoded, err := json.Marshal(value)
 			if err != nil {
 				t.Fatal(err)
 			}
-			m["resource.yaml"] = &fstest.MapFile{Data: b}
-			if err := resource.Validate(m); err == nil {
-				t.Fatal("invalid definition accepted")
+			if _, err := resource.DecodeResource(bytes.NewReader(encoded)); err == nil {
+				t.Fatal("invalid JSON accepted")
 			}
 		})
 	}
-}
-
-func TestDefinitionRejections(t *testing.T) {
-	for name, replacement := range map[string]struct{ before, after string }{
-		"unknown field":      {"resource:", "unknown: true\nresource:"},
-		"duplicate key":      {"resource:", "resource: {}\nresource:"},
-		"multiple documents": {"resource:", "---\n{}\n---\nresource:"},
-		"unqualified image":  {"ghcr.io/example/default:latest", "default:latest"},
-		"untagged image":     {"ghcr.io/example/default:latest", "ghcr.io/example/default"},
-		"version":            {"v1.0.0", "v01.0.0"},
-		"short version":      {"v1.0.0", "v1.0"},
-		"numeric prerelease": {"v1.0.0", "v1.0.0-01"},
-		"path escape":        {"description.md", "../description.md"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			m := fixture(t)
-			m["resource.yaml"].Data = []byte(strings.ReplaceAll(string(m["resource.yaml"].Data), replacement.before, replacement.after))
-			if err := resource.Validate(m); err == nil {
-				t.Fatal("invalid definition accepted")
-			}
-		})
+	for _, data := range []string{string(original) + " {}", string(original) + " garbage", "null", "{}"} {
+		if _, err := resource.DecodeResource(strings.NewReader(data)); err == nil {
+			t.Fatal("invalid document accepted")
+		}
 	}
 }
 
-func TestLinks(t *testing.T) {
-	for _, kind := range []string{"symlink", "hardlink", "directory-symlink"} {
-		t.Run(kind, func(t *testing.T) {
-			dir := t.TempDir()
-			m := fixture(t)
-			for p, f := range m {
-				if err := os.WriteFile(filepath.Join(dir, p), f.Data, 0644); err != nil {
+func jsonWorkflow(v map[string]any) map[string]any {
+	return v["workflows"].(map[string]any)["main"].(map[string]any)
+}
+func jsonJob(v map[string]any) map[string]any {
+	return jsonWorkflow(v)["jobs"].(map[string]any)["public"].(map[string]any)
+}
+func jsonStep(v map[string]any) map[string]any {
+	return jsonJob(v)["steps"].([]any)[0].(map[string]any)
+}
+
+// Decode the published JSON without loading its source manifest or materials.
+func TestDecodeRoundTrip(t *testing.T) {
+	paths, err := filepath.Glob("testdata/cli/valid/*/want/show/*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("no resource JSON fixtures")
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded, err := resource.DecodeResource(bytes.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			encoded, err := json.Marshal(decoded)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got, want any
+			for _, item := range []struct {
+				data   []byte
+				target *any
+			}{{encoded, &got}, {data, &want}} {
+				decoder := json.NewDecoder(bytes.NewReader(item.data))
+				decoder.UseNumber()
+				if err := decoder.Decode(item.target); err != nil {
 					t.Fatal(err)
 				}
 			}
-			description := filepath.Join(dir, "description.md")
-			if err := os.Remove(description); err != nil {
-				t.Fatal(err)
-			}
-			var err error
-			if kind == "symlink" {
-				err = os.Symlink(filepath.Join(dir, "expected.txt"), description)
-			} else if kind == "hardlink" {
-				err = os.Link(filepath.Join(dir, "expected.txt"), description)
-			} else {
-				err = os.Symlink(t.TempDir(), description)
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := resource.Validate(os.DirFS(dir)); err == nil {
-				t.Fatal("link accepted")
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("JSON round trip changed %s", path)
 			}
 		})
-	}
-}
-
-func TestReadAllMaterialKinds(t *testing.T) {
-	m := fixture(t)
-	data := string(m["resource.yaml"].Data)
-	data = strings.Replace(data, "    description-path: description.md", "    description-path: description.md\n    presets:\n      files:\n      - source: material/preset.bin\n        path: include/preset.bin", 1)
-	data = strings.Replace(data, "- run: echo hello", "- run: echo hello\n          stdin:\n            path: material/stdin.bin", 1)
-	m["resource.yaml"].Data = []byte(data)
-	m["material/preset.bin"] = &fstest.MapFile{Data: []byte{0, 255, 1}}
-	m["material/stdin.bin"] = &fstest.MapFile{Data: []byte{255, 0, 2}}
-	r, err := resource.Read(m)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, p := range []string{"description.md", "expected.txt", "material/preset.bin", "material/stdin.bin"} {
-		if !bytes.Equal(r.Files[p], m[p].Data) {
-			t.Fatalf("material not loaded: %s", p)
-		}
-	}
-	for _, p := range []string{"material/preset.bin", "material/stdin.bin"} {
-		saved := m[p]
-		delete(m, p)
-		if err := resource.Validate(m); err == nil {
-			t.Fatalf("missing material accepted: %s", p)
-		}
-		m[p] = saved
-	}
-}
-
-func TestYAMLAnchors(t *testing.T) {
-	m := fixture(t)
-	data := string(m["resource.yaml"].Data)
-	data = strings.Replace(data, "sandbox-image: ghcr.io/example/default:latest", "sandbox-image: &image ghcr.io/example/default:latest", 1)
-	data = strings.ReplaceAll(data, "sandbox-image: ghcr.io/example/default:latest", "sandbox-image: *image")
-	m["resource.yaml"].Data = []byte(data)
-	if err := resource.Validate(m); err != nil {
-		t.Fatal(err)
 	}
 }

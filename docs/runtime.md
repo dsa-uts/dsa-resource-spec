@@ -24,28 +24,31 @@ CPU・メモリ・プロセス数・実行時間・出力サイズなどの上�
 
 Job ごとに独立した作業領域を作成し、次の順で処理する。同じ Job の Step 間では作業領域を共有し、途中で消去しない。
 
-1. 提出ファイルと入力成果物を、書き込み可能な通常ファイルとしてコピーする。
+1. 提出ファイルと入力成果物を、作業領域に書き込み可能な通常ファイルとしてコピーする。
 2. Preset を読み取り専用の `/preset` に配置する。
 3. Step を順に実行する。
 4. 実行結果と、存在する出力成果物を回収する。
 5. 作業領域を削除する。
 
-提出ファイルはコピーなので、実行中の変更は元の提出物に反映しない。`stdin.path` の内容は Judge が標準入力に流し、`expected.*.path` は Judge 内で比較に使う。これらのファイルは作業領域へ配置しない。
+提出ファイルはコピーなので、実行中の変更は元の提出物に反映しない。解決済みの `Step.Stdin` を Judge が標準入力に流し、`Expected.Stdout` / `Stderr` の `Content` を Judge 内で比較に使う。これらのファイルは作業領域へ配置しない。
 
-Preset は実行ユーザーによる変更・削除・置換を禁止する。親ディレクトリへの書き込み権限でも置換できるため、ファイル単体の権限変更だけでは不十分。
+Preset は `Executable` が true なら実行できるようにし、実行ユーザーによる変更・削除・置換を禁止する。親ディレクトリへの書き込み権限でも置換できるため、ファイル単体の権限変更だけでは不十分。
 
 ### 成果物の回収
 
+- 入出力成果物のパスは Job の作業領域を基準に解釈し、Step 内の `cd` の影響を受けない。
 - 出力は全 Step の実行後、sandbox の削除前に回収する。ファイルがない場合は回収状況を実行結果に記録する。
 - 入力成果物がない場合は、sandbox 開始前に setup failure とする。
 - setup failure・timeout・Step failure・成果物回収失敗のいずれでも実行結果を保存する。
 - `limits.artifact-size` を超えるファイルは保存せず、回収状況を記録する。
 - 実行ビットだけを維持し、実行可能なら `0755`、それ以外は `0644` にする。owner・group・suid・sgid・sticky bit は維持しない。
 - 成果物は通常ファイルのみ。ディレクトリを指定すると、出力では回収失敗、入力では setup failure とする。
-- 提出ファイル・Preset・成果物の symlink、hardlink、device、FIFO、socket は検証エラーとする。
+- 提出ファイル・成果物の symlink、hardlink、device、FIFO、socket は検証エラーとする。Preset は解決済みの bytes から通常ファイルとして配置する。作者の素材参照に含まれる symlink は読み込み時に解決済み。
 - 成果物は信頼できない入力として扱い、Judge のホスト上では実行しない。
 
 ## Step の実行
+
+作業領域の絶対パスは Judge が決める。各 Step は Job の作業領域をカレントディレクトリとして開始し、Step 内の `cd` は次の Step に引き継がない。Preset を作業領域へコピーする場合は `cp /preset/sample.txt .` のように記述できる。
 
 Judge は `/bin/bash -e -o pipefail -c <run文字列>` を実行する。`run` は単一の引数としてそのまま渡し、Judge 側で分割・展開しない。Bash が展開・パイプ・リダイレクト・glob を解釈し、コマンドを sandbox の `PATH` で解決する。絶対パス・相対パスによるコマンド指定も許可する。
 
@@ -61,7 +64,7 @@ run: |
 
 ## タイムアウト
 
-Step は `step.timeout`、省略時は `job.limits.step-timeout` を使う。Job 全体は各 Step の実効 timeout の合計に Judge 内部の buffer（既定10秒）を加える。たとえば 30秒・10秒・10秒の Step なら60秒になる。
+YAML の `step.timeout`、省略時は `job.limits.step-timeout` を読み込み時に解決する。Judge は解決済み `Step.Timeout` を使う。Job 全体は各 Step の実効 timeout の合計に Judge 内部の buffer（既定10秒）を加える。たとえば 30秒・10秒・10秒の Step なら60秒になる。
 
 課題定義から変更できるのは Step の時間制限だけ。`job.limits.timeout-seconds` と `job.limits.timeout-buffer-seconds` は受け付けない。
 

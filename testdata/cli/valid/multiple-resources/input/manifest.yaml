@@ -1,0 +1,6 @@
+resources:
+  - id: other
+    path: other
+  - id: sample
+    path: sample
+sandbox-images: {}

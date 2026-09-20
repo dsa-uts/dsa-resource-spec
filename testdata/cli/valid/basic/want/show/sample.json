@@ -1,0 +1,153 @@
+{
+  "metadata": {
+    "id": "sample",
+    "name": "Test resource",
+    "version": "v1.0.0"
+  },
+  "workflows": {
+    "main": {
+      "name": "",
+      "description": "Test workflow.\n",
+      "presets": null,
+      "jobs": {
+        "build": {
+          "name": "",
+          "visibility": "public",
+          "depends": null,
+          "sandbox-image": "ghcr.io/example/default:latest",
+          "limits": {
+            "cpu": 1,
+            "memory": 67108864,
+            "pids": 128,
+            "stdout-size": 10485760,
+            "stderr-size": 10485760,
+            "workspace-size": 134217728,
+            "artifact-size": 1048576
+          },
+          "artifacts": {
+            "inputs": null,
+            "outputs": [
+              {
+                "name": "program",
+                "path": "program",
+                "visibility": "private",
+                "content-type": ""
+              }
+            ]
+          },
+          "steps": [
+            {
+              "name": "",
+              "compile": true,
+              "run": "touch program",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": null,
+                "stdout": null,
+                "stderr": null
+              }
+            }
+          ]
+        },
+        "private": {
+          "name": "",
+          "visibility": "private",
+          "depends": [
+            "build"
+          ],
+          "sandbox-image": "ghcr.io/example/default:latest",
+          "limits": {
+            "cpu": 1,
+            "memory": 67108864,
+            "pids": 128,
+            "stdout-size": 10485760,
+            "stderr-size": 10485760,
+            "workspace-size": 134217728,
+            "artifact-size": 1048576
+          },
+          "artifacts": {
+            "inputs": [
+              {
+                "from-job": "build",
+                "name": "program",
+                "path": "program"
+              }
+            ],
+            "outputs": null
+          },
+          "steps": [
+            {
+              "name": "",
+              "compile": false,
+              "run": "true",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": null,
+                "stdout": null,
+                "stderr": null
+              }
+            }
+          ]
+        },
+        "public": {
+          "name": "",
+          "visibility": "public",
+          "depends": [
+            "build"
+          ],
+          "sandbox-image": "ghcr.io/example/default:latest",
+          "limits": {
+            "cpu": 1,
+            "memory": 67108864,
+            "pids": 128,
+            "stdout-size": 10485760,
+            "stderr-size": 10485760,
+            "workspace-size": 134217728,
+            "artifact-size": 1048576
+          },
+          "artifacts": {
+            "inputs": [
+              {
+                "from-job": "build",
+                "name": "program",
+                "path": "program"
+              }
+            ],
+            "outputs": null
+          },
+          "steps": [
+            {
+              "name": "",
+              "compile": false,
+              "run": "echo hello",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": null,
+                "stdout": {
+                  "content": "aGVsbG8K",
+                  "match": "exact"
+                },
+                "stderr": null
+              }
+            },
+            {
+              "name": "",
+              "compile": false,
+              "run": "true",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": null,
+                "stdout": null,
+                "stderr": null
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

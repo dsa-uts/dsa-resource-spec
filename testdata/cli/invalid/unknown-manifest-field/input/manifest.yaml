@@ -1,0 +1,5 @@
+unknown: true
+resources:
+  - id: sample
+    path: sample
+sandbox-images: {}

@@ -5,7 +5,7 @@
 | やりたいこと | 読む文書 |
 | --- | --- |
 | 課題の定義を書く | [Resource 仕様](docs/resource.md) |
-| 課題を登録して公開する | [公開手順](docs/publishing.md) |
+| 課題を登録してイメージをビルドする | [登録・ビルド手順](docs/publishing.md) |
 | Backend・Judge を実装する | [実行規則](docs/runtime.md) |
 | 設計の理由を知る | [設計](docs/design.md) |
 
@@ -21,42 +21,34 @@ direnv allow .
 check
 ```
 
-## CLI 
-
-Linux 用バイナリ（amd64・arm64）の取得・公開は [CLI のリリース](docs/cli-release.md) を参照してください。
+## CLI
 
 ```sh
-# validate <resource dir>: リソース定義を検証する
-go run ./cmd/resource-spec validate testdata/valid
-# inspect <resource dir>: リソース定義を検証して、読み込んだ結果をJSONで出力する
-go run ./cmd/resource-spec inspect testdata/valid
+# manifest.yaml と登録された全課題を検証する
+go run ./cmd/resource-spec validate <manifest-dir>
+# マニフェストと登録された全課題のメタデータを JSON 出力する
+go run ./cmd/resource-spec catalog <manifest-dir>
+# 指定した課題の解決済み JSON を出力する
+go run ./cmd/resource-spec show <manifest-dir> <resource-id>
 ```
-
-公開に使う `manifest` は [公開手順](docs/publishing.md) を参照してください。`compare VERSION VERSION` は公開処理用に SemVer の大小を `-1`・`0`・`1` で返します。
 
 ## Go から使う
 
 ```go
-import (
-    "os"
-    resource "github.com/dsa-uts/dsa-resource-spec"
-)
-
-func load() (*resource.Resource, error) {
-    return resource.Read(os.DirFS("testdata/valid"))
+manifest, err := resource.LoadManifest("path/to/manifest-directory")
+if err != nil {
+    return err
 }
+// Resources は manifest.yaml の登録順。ID は Metadata.ID にある。
+data, err := json.Marshal(manifest.Resources[0])
+if err != nil {
+    return err
+}
+restored, err := resource.DecodeResource(bytes.NewReader(data))
 ```
 
-戻り値の `Definition` は型付き定義、`Files` は課題ルートからの相対パスをキーとする素材の bytes です。`archive/zip.Reader` も `fs.FS` として渡せます。
-
-| API | 用途 |
+| 関数 | 用途 |
 | --- | --- |
-| `Read(fs.FS) (*Resource, error)` | 定義を検証し、説明文・Preset・標準入力・期待出力の参照ファイルを一括で読む。入力 filesystem は保持しない。 |
-| `Validate(fs.FS) error` | `Read` と同じ検証だけを行う。 |
-| `ReadManifest(fs.FS) (*Manifest, error)` | 作者・CI 用の課題一覧とビルド設定を検証する。配布 ZIP の読み込みには不要。 |
+| `LoadManifest(dir string) (*Manifest, error)` | `manifest.yaml` と全課題を検証し、素材の読み込み・単位変換・既定値の補完を行う。 |
+| `DecodeResource(r io.Reader) (*Resource, error)` | 解決済み Resource の JSON を復元し、依存関係・実行制限などを検証する。未知フィールドと複数文書は拒否する。 |
 
-取得・認証・展開・採点・実行・公開済みバージョン管理は呼び出し側で行います。
-
-### 入力 filesystem の条件
-
-入力は呼び出し中に変更しないでください。symlink、非 regular file、OS が link count を提供する場合の hardlink を拒否します。独自の `fs.FS` はファイル種別を正しく公開する必要があります。同時書き換えや、隠蔽された hardlink の検出は保証しません。ZIP の取得・展開サイズの上限は取り込み側で設定してください。

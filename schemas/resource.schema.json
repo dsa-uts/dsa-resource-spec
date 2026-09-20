@@ -89,6 +89,7 @@
                   "minLength": 1
                 },
                 "visibility": {
+                  "default": "public",
                   "enum": [
                     "public",
                     "private"
@@ -106,15 +107,13 @@
                   "type": "string",
                   "minLength": 1
                 },
-                "working-directory": {
-                  "type": "string",
-                  "pattern": "^/workspace(?:/[a-zA-Z0-9_.-]+)*$"
-                },
                 "limits": {
                   "type": "object",
                   "properties": {
                     "cpu": {
-                      "const": 1
+                      "type": "integer",
+                      "minimum": 1,
+                      "default": 1
                     },
                     "memory": {
                       "type": "string",
@@ -122,26 +121,31 @@
                     },
                     "pids": {
                       "type": "integer",
-                      "minimum": 1
+                      "minimum": 1,
+                      "default": 128
                     },
                     "step-timeout": {
                       "$ref": "#/$defs/duration"
                     },
                     "stdout-size": {
                       "type": "string",
-                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$"
+                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
+                      "default": "10MiB"
                     },
                     "stderr-size": {
                       "type": "string",
-                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$"
+                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
+                      "default": "10MiB"
                     },
                     "workspace-size": {
                       "type": "string",
-                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$"
+                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
+                      "default": "128MiB"
                     },
                     "artifact-size": {
                       "type": "string",
-                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$"
+                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
+                      "default": "1MiB"
                     }
                   },
                   "required": [

@@ -1,19 +1,19 @@
-# 課題の公開
+# 課題の登録とイメージのビルド
 
-このリポジトリで課題の登録、イメージのビルド、GitHub Release への公開を行う。初期状態の `resources.yaml` は空で、公開対象はない。
+このリポジトリで課題の登録・検証と、GHCR へのイメージのビルド・push を行う。初期状態の `manifest.yaml` は空で、登録された課題やビルド対象のイメージはない。解決済み課題は `show` で JSON に出力できる。ホスティング先や自動公開の運用は未定。
 
 ## 1. 課題を登録する
 
-専用ディレクトリに [resource.yaml](resource.md) と参照素材を置き、ルートの `resources.yaml` に登録する。
+専用ディレクトリに [resource.yaml](resource.md) と参照素材を置き、ルートの `manifest.yaml` に登録する。
 
 ```yaml
 resources:
   - id: sample
-    path: exercises/sample/resource.yaml
+    path: exercises/sample # resourceのコンテキストディレクトリ。トップにresource.yamlが置かれている。
 sandbox-images: {}
 ```
 
-一覧の `id` と定義の `resource.id` は一致させる。[testdata/valid](../testdata/valid) に素材を含む例があるが、イメージ名はプレースホルダーなので取得可能な参照に置き換える。
+一覧の `id` と定義の `resource.id` は一致させる。[testdata/cli/valid/basic/input](../testdata/cli/valid/basic/input) に素材を含む例があるが、イメージ名はプレースホルダーなので取得可能な参照に置き換える。
 
 このリポジトリでイメージもビルドする場合は `sandbox-images` に追加する。
 
@@ -26,32 +26,32 @@ sandbox-images:
     platforms: [linux/amd64, linux/arm64]
 ```
 
-`context` と `dockerfile` はリポジトリルートからの相対パス。`context` は専用のディレクトリ、`image` は書き込み可能なタグなし GHCR repository とする。対応する platform は上記の2種類。
+`context` と `dockerfile` はリポジトリルートからの相対パス。`context` はディレクトリ（ルートの `.` も可）。両パスとも `./` と範囲内の `..` を許可し、絶対パス・backslash・colon・NUL・空文字は禁止する。`image` は空でない文字列とし、レジストリ・タグの形式や重複の可否は、利用するビルド処理が決める。対応する platform は上記の2種類。
 
-Dockerfile とビルドコンテキストの内容はレビューと Docker によるビルドで確認する。manifest の検証ではビルド入力の存在や内容は確認しない。
+同梱の Actions は GHCR にログインし、ビルドスクリプトは `image` に `:latest` を付けて push する。この Actions を使う場合は、`image` に書き込み可能なタグなし GHCR repository を指定する。
+
+Dockerfile とビルドコンテキストは、manifest の読み込み時点でリポジトリ内に存在することを必須とする。manifest の検証では、`context` がディレクトリ、`dockerfile` が通常ファイルであることを確認する。範囲内を指す相対 symlink は許可するが、マニフェストのディレクトリ外への参照と絶対 symlink は拒否する。内容は読み込まず、レビューと Docker によるビルドで確認する。
 
 ## 2. ローカルで検証する
 
 リポジトリルートで実行する。
 
 ```sh
-go run ./cmd/resource-spec manifest .
+go run ./cmd/resource-spec validate .
 ```
 
-課題一覧、各課題の定義・参照素材、イメージのビルド設定を検証し、結果を JSON で出力する。
+課題一覧、各課題の定義・参照素材、イメージのビルド設定を検証する。
 
-## 3. 公開を設定する
+マニフェストと全課題のメタデータは `resource-spec catalog .`、一つの課題は次で出力する。
 
-リポジトリで release immutability を有効にし、Actions variable `IMMUTABLE_RELEASES_ENABLED=true` を設定する。この変数は設定済みという宣言であり、公開スクリプトが実際の設定を変更・照会するものではない。GHCR の可視性と利用側の pull 権限も設定する。
+```sh
+resource-spec show . sample > sample.json
+```
 
-## 公開と再実行
+`sample.json` は `DecodeResource` にそのまま渡せる。元の素材ファイルを添付する必要はない。[JSON の契約](resolved-resource.md) を参照。
 
-[Resources workflow](../.github/workflows/resources.yml) はチェックアウトしたコードから CLI をビルドする。main への反映後、次の順に処理する。
+## 3. イメージのビルドを設定する
 
-1. イメージをキャッシュ付きでビルドし、`latest` を更新する。
-2. 未公開課題のすべてのタグ参照を同じ repository の sha256 digest に固定する。既存 digest は保持する。未解決タグ、別 repository への置換、不正な digest は拒否する。
-3. `<id>/<version>`（例: `sample/v1.0.0`）の draft Release に対象課題の ZIP を添付し、公開する。
+GHCR の可視性と利用側の pull 権限を設定する。
 
-公開する変更には、Release 一覧にある最新版より大きい `resource.version` を手動で指定する。版の飛び越しは可能。同一バージョンは再公開せず、古い版や build metadata だけを変えた版は拒否する。同じ版のまま編集しても公開済みの内容は変わらない。公開対象が空なら何も公開しない。
-
-Release 作成前に main が進んでいたら中止する。失敗時に残った draft やタグは上書きしないため、内容と commit を確認して手動で対処する。公開済み Release・イメージの削除処理は設けない。
+[Resources workflow](../.github/workflows/resources.yml) はチェックアウトしたコードから CLI をビルドし、`validate` で課題一覧を検証する。main への反映後、または main に対する手動実行で、`sandbox-images` のイメージをキャッシュ付きでビルドして GHCR に push し、`latest` を更新する。ビルド対象が空ならイメージのビルド・push は行わない。

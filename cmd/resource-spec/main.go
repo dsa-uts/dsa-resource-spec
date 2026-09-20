@@ -7,8 +7,6 @@ import (
 	"io"
 	"os"
 
-	"golang.org/x/mod/semver"
-
 	resource "github.com/dsa-uts/dsa-resource-spec"
 )
 
@@ -20,40 +18,48 @@ func main() {
 }
 
 func run(args []string, out io.Writer) error {
-	if len(args) == 3 && args[0] == "compare" {
-		if !semver.IsValid(args[1]) || !semver.IsValid(args[2]) {
-			return fmt.Errorf("invalid version")
-		}
-		_, err := fmt.Fprintln(out, semver.Compare(args[1], args[2]))
-		return err
-	}
 	if len(args) == 0 {
-		return fmt.Errorf("usage: resource-spec <validate|inspect|manifest|compare> RESOURCE_DIRECTORY")
+		return fmt.Errorf("usage: resource-spec <validate|catalog> MANIFEST_DIRECTORY | show MANIFEST_DIRECTORY RESOURCE_ID")
+	}
+	if args[0] != "validate" && args[0] != "catalog" && args[0] != "show" {
+		return fmt.Errorf("unknown command %q", args[0])
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
-	if flags.NArg() != 1 {
-		return fmt.Errorf("expected one resource directory")
+	count := 1
+	if args[0] == "show" {
+		count = 2
 	}
-	root := os.DirFS(flags.Arg(0))
+	if flags.NArg() != count {
+		return fmt.Errorf("%s expects %d arguments", args[0], count)
+	}
+	manifest, err := resource.LoadManifest(flags.Arg(0))
+	if err != nil {
+		return err
+	}
 	switch args[0] {
-	case "manifest":
-		m, err := resource.ReadManifest(root)
-		if err != nil {
-			return err
-		}
-		return json.NewEncoder(out).Encode(m)
 	case "validate":
-		return resource.Validate(root)
-	case "inspect":
-		r, err := resource.Read(root)
-		if err != nil {
-			return err
+		return nil
+	case "catalog":
+		catalog := struct {
+			Resources     []resource.Metadata            `json:"resources"`
+			SandboxImages map[string]resource.ImageBuild `json:"sandbox-images"`
+		}{
+			Resources:     make([]resource.Metadata, 0, len(manifest.Resources)),
+			SandboxImages: manifest.SandboxImages,
 		}
-		return json.NewEncoder(out).Encode(r.Definition)
+		for _, item := range manifest.Resources {
+			catalog.Resources = append(catalog.Resources, item.Metadata)
+		}
+		return json.NewEncoder(out).Encode(catalog)
 	default:
-		return fmt.Errorf("unknown command %q", args[0])
+		for _, item := range manifest.Resources {
+			if item.Metadata.ID == flags.Arg(1) {
+				return json.NewEncoder(out).Encode(item)
+			}
+		}
+		return fmt.Errorf("unknown resource ID %q", flags.Arg(1))
 	}
 }

@@ -1,0 +1,15 @@
+{
+  "resources": [
+    {
+      "id": "other",
+      "name": "Test resource",
+      "version": "v1.0.0"
+    },
+    {
+      "id": "sample",
+      "name": "Test resource",
+      "version": "v1.0.0"
+    }
+  ],
+  "sandbox-images": {}
+}
