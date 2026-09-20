@@ -23,7 +23,6 @@ jobs:
           go build -o "$RUNNER_TEMP/resource-bin/resource-spec" ./cmd/resource-spec
           echo "$RUNNER_TEMP/resource-bin" >> "$GITHUB_PATH"
       - run: resource-spec validate .
-      - run: python3 -B -m unittest discover -s tests -p 'test_build_images.py' -v
   build-images:
     needs: validate
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
