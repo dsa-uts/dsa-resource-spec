@@ -3,7 +3,6 @@ package resource
 import (
 	"fmt"
 	"io/fs"
-	"path"
 	"reflect"
 	"strings"
 )
@@ -15,51 +14,51 @@ func relative(p string) error {
 	return nil
 }
 
-// readRegular checks each directory entry before opening it. fs.FS adapters must
-// faithfully expose entry types (and link counts when available), and remain stable.
-func readRegular(root fs.FS, name string) ([]byte, error) {
-	if err := relative(name); err != nil {
-		return nil, err
-	}
-	parent := "."
-	parts := strings.Split(name, "/")
-	for i, part := range parts {
-		entries, err := fs.ReadDir(root, parent)
+// readFiles snapshots the resource tree without following symbolic links.
+// The caller must supply stable entries with accurate file types and link counts.
+func readFiles(root fs.FS) (resourceFiles, error) {
+	files := resourceFiles{}
+	err := fs.WalkDir(root, ".", func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", name, err)
-		}
-		var entry fs.DirEntry
-		for _, e := range entries {
-			if e.Name() == part {
-				entry = e
-				break
-			}
-		}
-		if entry == nil {
-			return nil, fmt.Errorf("%s: %w", name, fs.ErrNotExist)
+			return err
 		}
 		info, err := entry.Info()
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("%s: %w", name, err)
 		}
 		if info.Mode()&fs.ModeSymlink != 0 {
-			return nil, fmt.Errorf("%s: symlink is forbidden", name)
+			return nil
 		}
-		if i < len(parts)-1 {
-			if !info.IsDir() {
-				return nil, fmt.Errorf("%s: not a directory", name)
-			}
-		} else {
-			if !info.Mode().IsRegular() {
-				return nil, fmt.Errorf("%s: not a regular file", name)
-			}
-			if hasMultipleLinks(info) {
-				return nil, fmt.Errorf("%s: hardlink is forbidden", name)
-			}
+		if info.IsDir() {
+			return nil
 		}
-		parent = path.Join(parent, part)
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("%s: not a regular file", name)
+		}
+		if hasMultipleLinks(info) {
+			return fmt.Errorf("%s: hardlink is forbidden", name)
+		}
+		data, err := fs.ReadFile(root, name)
+		if err != nil {
+			return err
+		}
+		files[name] = data
+		return nil
+	})
+	return files, err
+}
+
+type resourceFiles map[string][]byte
+
+func (files resourceFiles) read(name string) ([]byte, error) {
+	if err := relative(name); err != nil {
+		return nil, err
 	}
-	return fs.ReadFile(root, name)
+	data, ok := files[name]
+	if !ok {
+		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrNotExist}
+	}
+	return data, nil
 }
 
 func hasMultipleLinks(info fs.FileInfo) bool {

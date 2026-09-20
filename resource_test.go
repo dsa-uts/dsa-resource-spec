@@ -1,7 +1,9 @@
 package resource_test
 
 import (
+	"archive/zip"
 	"bytes"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -178,10 +180,101 @@ func TestSymlinkFixtures(t *testing.T) {
 	for _, name := range []string{"symlink", "directory-symlink", "definition-symlink"} {
 		t.Run(name, func(t *testing.T) {
 			err := resource.Validate(os.DirFS(filepath.Join("testdata/resource/invalid", name)))
-			if err == nil || !strings.Contains(err.Error(), "symlink is forbidden") {
-				t.Fatalf("expected symlink rejection, got %v", err)
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Fatalf("expected missing file after filtering symlink, got %v", err)
 			}
 		})
+	}
+}
+
+func TestReadIgnoresUnusedSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.CopyFS(dir, os.DirFS("testdata/resource/valid/basic")); err != nil {
+		t.Fatal(err)
+	}
+	for name, target := range map[string]string{
+		"file-link": "description.md", "directory-link": ".",
+		"broken-link": "missing", "external-link": t.TempDir(), "cycle": "cycle",
+	} {
+		if err := os.Symlink(target, filepath.Join(dir, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := resource.Read(os.DirFS(dir)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReadZIP(t *testing.T) {
+	for _, linked := range []string{"unused", "description.md", "resource.yaml", "material"} {
+		t.Run(linked, func(t *testing.T) {
+			m := fixture(t)
+			if linked == "material" {
+				m["resource.yaml"].Data = bytes.ReplaceAll(m["resource.yaml"].Data, []byte("description.md"), []byte("material/description.md"))
+			}
+			m[linked] = &fstest.MapFile{Data: []byte("description.md"), Mode: fs.ModeSymlink | 0777}
+			var archive bytes.Buffer
+			writer := zip.NewWriter(&archive)
+			for name, file := range m {
+				header := &zip.FileHeader{Name: name, Method: zip.Deflate}
+				header.SetMode(file.Mode)
+				out, err := writer.CreateHeader(header)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := out.Write(file.Data); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := writer.Close(); err != nil {
+				t.Fatal(err)
+			}
+			root, err := zip.NewReader(bytes.NewReader(archive.Bytes()), int64(archive.Len()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			r, err := resource.Read(root)
+			if linked != "unused" {
+				if !errors.Is(err, fs.ErrNotExist) {
+					t.Fatalf("expected missing file, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(r.Files["description.md"], m["description.md"].Data) {
+				t.Fatal("ZIP material differs from source")
+			}
+		})
+	}
+}
+
+// unreadableFS exposes directory entries but fails when opening one file.
+type unreadableFS struct {
+	fs.FS
+	name string
+}
+
+func (root unreadableFS) Open(name string) (fs.File, error) {
+	if name == root.name {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrPermission}
+	}
+	return root.FS.Open(name)
+}
+
+func TestReadIncludesUnreferencedFilesInSnapshot(t *testing.T) {
+	m := fixture(t)
+	m["unused.txt"] = &fstest.MapFile{Data: []byte("unused")}
+	if _, err := resource.Read(unreadableFS{FS: m, name: "unused.txt"}); !errors.Is(err, fs.ErrPermission) {
+		t.Fatalf("expected snapshot read failure, got %v", err)
+	}
+	r, err := resource.Read(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := r.Files["unused.txt"]; ok {
+		t.Fatal("unreferenced file returned as material")
 	}
 }
 

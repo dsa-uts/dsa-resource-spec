@@ -26,6 +26,15 @@ func TestManifest(t *testing.T) {
 	}
 }
 
+func TestManifestReadsOnlyListedResources(t *testing.T) {
+	m := manifestFixture(t)
+	m["images/unused"] = &fstest.MapFile{}
+	m["sample/unused-link"] = &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte("missing")}
+	if _, err := resource.ReadManifest(unreadableFS{FS: m, name: "images/unused"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestManifestNestedDirectory(t *testing.T) {
 	m := manifestFixture(t)
 	nested := fstest.MapFS{}

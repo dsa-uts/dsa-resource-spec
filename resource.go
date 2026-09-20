@@ -19,10 +19,15 @@ func Validate(root fs.FS) error {
 	return err
 }
 
-// Read validates a resource and reads all referenced materials before returning.
+// Read snapshots all regular files in a resource tree, excluding symbolic links,
+// then validates the definition and returns its referenced materials.
 // The caller must supply a stable filesystem throughout the call.
 func Read(root fs.FS) (*Resource, error) {
-	data, err := readRegular(root, "resource.yaml")
+	files, err := readFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	data, err := files.read("resource.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -35,14 +40,14 @@ func Read(root fs.FS) (*Resource, error) {
 		if err := validateWorkflow(workflow); err != nil {
 			return nil, fmt.Errorf("workflow %s: %w", id, err)
 		}
-		if err := resource.readMaterials(root, workflow); err != nil {
+		if err := resource.readMaterials(files, workflow); err != nil {
 			return nil, fmt.Errorf("workflow %s: %w", id, err)
 		}
 	}
 	return resource, nil
 }
 
-func (r *Resource) readMaterials(root fs.FS, workflow Workflow) error {
+func (r *Resource) readMaterials(files resourceFiles, workflow Workflow) error {
 	paths := []string{workflow.DescriptionPath}
 	if workflow.Presets != nil {
 		for _, preset := range workflow.Presets.Files {
@@ -69,7 +74,7 @@ func (r *Resource) readMaterials(root fs.FS, workflow Workflow) error {
 		if _, loaded := r.Files[name]; loaded {
 			continue
 		}
-		data, err := readRegular(root, name)
+		data, err := files.read(name)
 		if err != nil {
 			return err
 		}

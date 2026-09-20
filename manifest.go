@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"path"
+	"strings"
 	"sync"
 
 	"github.com/distribution/reference"
@@ -43,7 +43,7 @@ var manifestSchema = sync.OnceValues(func() (*jsonschema.Resolved, error) {
 // ReadManifest validates the author index, resources and image build configuration.
 // It never builds images, contacts registries, or checks release history.
 func ReadManifest(root fs.FS) (*Manifest, error) {
-	data, err := readRegular(root, "resources.yaml")
+	data, err := fs.ReadFile(root, "resources.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -75,12 +75,7 @@ func validateResourceEntries(root fs.FS, entries []ResourceEntry) error {
 		if err := relative(entry.Path); err != nil {
 			return err
 		}
-		// Check from the manifest root so links in the resource directory path
-		// are rejected before fs.Sub hides those directory entries.
-		if _, err := readRegular(root, path.Join(entry.Path, "resource.yaml")); err != nil {
-			return err
-		}
-		resourceFS, err := fs.Sub(root, entry.Path)
+		resourceFS, err := resourceDirectory(root, entry.Path)
 		if err != nil {
 			return err
 		}
@@ -93,6 +88,38 @@ func validateResourceEntries(root fs.FS, entries []ResourceEntry) error {
 		}
 	}
 	return nil
+}
+
+// resourceDirectory checks each component before Sub hides its entry type.
+func resourceDirectory(root fs.FS, name string) (fs.FS, error) {
+	for _, part := range strings.Split(name, "/") {
+		entries, err := fs.ReadDir(root, ".")
+		if err != nil {
+			return nil, err
+		}
+		found := false
+		for _, entry := range entries {
+			if entry.Name() != part {
+				continue
+			}
+			if entry.Type()&fs.ModeSymlink != 0 {
+				return nil, fmt.Errorf("%s: symlink is forbidden", name)
+			}
+			if !entry.IsDir() {
+				return nil, fmt.Errorf("%s: not a directory", name)
+			}
+			found = true
+			break
+		}
+		if !found {
+			return nil, &fs.PathError{Op: "sub", Path: name, Err: fs.ErrNotExist}
+		}
+		root, err = fs.Sub(root, part)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return root, nil
 }
 
 func validateBuilds(images map[string]ImageBuild) error {
