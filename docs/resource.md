@@ -178,7 +178,7 @@ limits:
 | フィールド | 必須 | 内容 |
 | --- | --- | --- |
 | `cpu` | 任意 | 当面 `1` 固定。指定する場合も `1` のみ許可。 |
-| `memory` | 必須 | Job のメモリ上限。例: `512MiB`。 |
+| `memory` | 必須 | Job のメモリ上限。例: `512MiB`。省略時 `128MiB` |
 | `pids` | 任意 | 最大プロセス数。1 以上の整数。省略時 `128`。 |
 | `step-timeout` | 必須 | Step timeout の既定値。例: `"2s"`、`"300ms"`。 |
 | `stdout-size` | 任意 | stdout capture 上限。省略時 `10MiB`。 |
@@ -223,7 +223,7 @@ steps:
 
 `compile: true` は失敗時のステータスを CE にする指定であり、`expected` 等による成功・失敗の判定条件は変更しない。`false` または省略時は通常の失敗判定を使う。ステータスの判定・記録は Judge が行う。
 
-`expected.exit-code` は `0..255` の整数で、省略時 `0`。`expected.stdout` と `expected.stderr` は省略時、比較しない。
+`expected.exit-code` は `0..255` の整数で、省略時は終了コードをチェックしない。正常終了を期待する場合は `exit-code: 0` を明示する。`expected.stdout` と `expected.stderr` は省略時、比較しない。
 
 ### 標準入力と期待する出力
 

@@ -83,7 +83,7 @@ type OutputExpectation struct {
 }
 
 type Expected struct {
-	ExitCode int                `json:"exit-code"`
+	ExitCode *int               `json:"exit-code"` // nil means the exit code is not checked.
 	Stdout   *OutputExpectation `json:"stdout"`
 	Stderr   *OutputExpectation `json:"stderr"`
 }

@@ -65,7 +65,7 @@ func TestResolvedResource(t *testing.T) {
 	if job.Limits.Memory != 64<<20 || job.Limits.CPU != 1 || job.Limits.PIDs != 128 || job.Limits.WorkspaceSize != 128<<20 || job.Limits.ArtifactSize != 1<<20 || job.Limits.StdoutSize != 10<<20 || job.Limits.StderrSize != 10<<20 {
 		t.Fatal(job.Limits)
 	}
-	if job.Steps[0].Timeout != time.Second || job.Steps[1].Expected.ExitCode != 0 || job.Steps[1].Expected.Stdout != nil {
+	if job.Steps[0].Timeout != time.Second || job.Steps[1].Expected.ExitCode != nil || job.Steps[1].Expected.Stdout != nil {
 		t.Fatal(job.Steps)
 	}
 	if workflow.Jobs["build"].Artifacts.Outputs[0].Visibility != "private" || !workflow.Jobs["build"].Steps[0].Compile {
@@ -99,6 +99,54 @@ func TestResolvedResource(t *testing.T) {
 	}
 	if !bytes.Equal(restored.Workflows["main"].Jobs["public"].Steps[0].Expected.Stdout.Content, expected) {
 		t.Fatal("resource retained filesystem")
+	}
+}
+
+func TestExpectedExitCode(t *testing.T) {
+	for _, value := range []string{"", "0", "1", "255", "-1", "256"} {
+		t.Run("exit-code="+value, func(t *testing.T) {
+			dir := fixture(t)
+			if value != "" {
+				replace(t, dir, "sample/resource.yaml", "          expected:\n", "          expected:\n            exit-code: "+value+"\n")
+			}
+			manifest, err := resource.LoadManifest(dir)
+			if value == "-1" || value == "256" {
+				if err == nil {
+					t.Fatal("out-of-range exit code accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := &manifest.Resources[0]
+			code := r.Workflows["main"].Jobs["public"].Steps[0].Expected.ExitCode
+			encoded, err := json.Marshal(code)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := value
+			if want == "" {
+				want = "null"
+			}
+			if string(encoded) != want {
+				t.Fatalf("exit code = %s, want %s", encoded, want)
+			}
+			data, err := json.Marshal(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(data, []byte(`"exit-code":`+want)) {
+				t.Fatalf("JSON missing expected exit code: %s", data)
+			}
+			restored, err := resource.DecodeResource(bytes.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(r, restored) {
+				t.Fatal("JSON round trip changed exit code expectations")
+			}
+		})
 	}
 }
 
@@ -232,6 +280,7 @@ func TestDecodeRejections(t *testing.T) {
 		"memory":               func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["memory"] = -1 },
 		"missing limits":       func(v map[string]any) { delete(jsonJob(v), "limits") },
 		"exit code":            func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = 256 },
+		"negative exit code":   func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = -1 },
 		"match": func(v map[string]any) {
 			jsonStep(v)["expected"].(map[string]any)["stdout"].(map[string]any)["match"] = "unknown"
 		},

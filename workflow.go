@@ -97,7 +97,7 @@ func validateJob(id string, job Job, jobs map[string]Job) error {
 		if step.Timeout <= 0 {
 			return fmt.Errorf("invalid step timeout")
 		}
-		if step.Expected.ExitCode < 0 || step.Expected.ExitCode > 255 {
+		if code := step.Expected.ExitCode; code != nil && (*code < 0 || *code > 255) {
 			return fmt.Errorf("invalid expected exit code")
 		}
 		for _, output := range []*OutputExpectation{step.Expected.Stdout, step.Expected.Stderr} {

@@ -86,7 +86,7 @@ func resolveJob(root *os.Root, dir string, raw rawJob) (Job, error) {
 		fallback    int64
 		out         *int64
 	}{
-		{"memory", raw.Limits.Memory, 0, &job.Limits.Memory},
+		{"memory", raw.Limits.Memory, 128 << 20, &job.Limits.Memory},
 		{"stdout-size", raw.Limits.StdoutSize, 10 << 20, &job.Limits.StdoutSize},
 		{"stderr-size", raw.Limits.StderrSize, 10 << 20, &job.Limits.StderrSize},
 		{"workspace-size", raw.Limits.WorkspaceSize, 128 << 20, &job.Limits.WorkspaceSize},
@@ -131,9 +131,7 @@ func resolveJob(root *os.Root, dir string, raw rawJob) (Job, error) {
 			return job, err
 		}
 		if rawStep.Expected != nil {
-			if rawStep.Expected.ExitCode != nil {
-				step.Expected.ExitCode = *rawStep.Expected.ExitCode
-			}
+			step.Expected.ExitCode = rawStep.Expected.ExitCode
 			for _, field := range []struct {
 				raw *rawStream
 				out **OutputExpectation
