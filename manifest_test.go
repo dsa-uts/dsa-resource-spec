@@ -163,3 +163,15 @@ func TestManifestValidatesResourcesFromMemory(t *testing.T) {
 		t.Fatalf("expected second resource validation failure, got %v", err)
 	}
 }
+
+func TestManifestRejectsDirectoryAsFile(t *testing.T) {
+	for _, name := range []string{"resources.yaml", "sample/resource.yaml", "sample/description.md"} {
+		t.Run(name, func(t *testing.T) {
+			m := manifestFixture(t)
+			m[name] = &fstest.MapFile{Mode: fs.ModeDir | 0755}
+			if _, err := resource.ReadManifest(m); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+				t.Fatalf("expected directory rejection, got %v", err)
+			}
+		})
+	}
+}

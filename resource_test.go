@@ -354,3 +354,15 @@ func TestReadRejectsSpecialFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestReadRejectsDirectoryAsFile(t *testing.T) {
+	for _, name := range []string{"resource.yaml", "description.md", "expected.txt"} {
+		t.Run(name, func(t *testing.T) {
+			m := fixture(t)
+			m[name] = &fstest.MapFile{Mode: fs.ModeDir | 0755}
+			if _, err := resource.Read(m); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+				t.Fatalf("expected directory rejection, got %v", err)
+			}
+		})
+	}
+}

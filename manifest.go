@@ -9,6 +9,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/google/jsonschema-go/jsonschema"
+	"github.com/spf13/afero"
 )
 
 // Manifest is the author/CI index. It is not required when reading a release ZIP.
@@ -50,8 +51,8 @@ func ReadManifest(root fs.FS) (*Manifest, error) {
 	return readManifest(files)
 }
 
-func readManifest(files resourceFiles) (*Manifest, error) {
-	data, err := files.read("resources.yaml")
+func readManifest(files afero.Fs) (*Manifest, error) {
+	data, err := readFile(files, "resources.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func readManifest(files resourceFiles) (*Manifest, error) {
 	return &manifest, nil
 }
 
-func validateResourceEntries(files resourceFiles, entries []ResourceEntry) error {
+func validateResourceEntries(files afero.Fs, entries []ResourceEntry) error {
 	ids, paths := map[string]bool{}, map[string]bool{}
 	for _, entry := range entries {
 		if ids[entry.ID] || paths[entry.Path] {
@@ -83,7 +84,7 @@ func validateResourceEntries(files resourceFiles, entries []ResourceEntry) error
 		if err := relative(entry.Path); err != nil {
 			return err
 		}
-		resource, err := read(files.sub(entry.Path))
+		resource, err := read(afero.NewBasePathFs(files, entry.Path))
 		if err != nil {
 			return fmt.Errorf("%s: %w", entry.Path, err)
 		}

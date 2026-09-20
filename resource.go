@@ -4,6 +4,8 @@ package resource
 import (
 	"fmt"
 	"io/fs"
+
+	"github.com/spf13/afero"
 )
 
 // Resource holds the validated definition and every referenced file, keyed by its resource-relative path.
@@ -30,8 +32,8 @@ func Read(root fs.FS) (*Resource, error) {
 	return read(files)
 }
 
-func read(files resourceFiles) (*Resource, error) {
-	data, err := files.read("resource.yaml")
+func read(files afero.Fs) (*Resource, error) {
+	data, err := readFile(files, "resource.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +53,7 @@ func read(files resourceFiles) (*Resource, error) {
 	return resource, nil
 }
 
-func (r *Resource) readMaterials(files resourceFiles, workflow Workflow) error {
+func (r *Resource) readMaterials(files afero.Fs, workflow Workflow) error {
 	paths := []string{workflow.DescriptionPath}
 	if workflow.Presets != nil {
 		for _, preset := range workflow.Presets.Files {
@@ -78,7 +80,7 @@ func (r *Resource) readMaterials(files resourceFiles, workflow Workflow) error {
 		if _, loaded := r.Files[name]; loaded {
 			continue
 		}
-		data, err := files.read(name)
+		data, err := readFile(files, name)
 		if err != nil {
 			return err
 		}
