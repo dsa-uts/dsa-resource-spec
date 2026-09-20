@@ -26,9 +26,11 @@ sandbox-images:
     platforms: [linux/amd64, linux/arm64]
 ```
 
-`context` と `dockerfile` はリポジトリルートからの相対パス。`context` はディレクトリ（ルートの `.` も可）、`image` は書き込み可能なタグなし GHCR repository とする。対応する platform は上記の2種類。
+`context` と `dockerfile` はリポジトリルートからの相対パス。`context` はディレクトリ（ルートの `.` も可）。両パスとも `./` と範囲内の `..` を許可し、絶対パス・backslash・colon・NUL・空文字は禁止する。`image` は空でない文字列とし、レジストリ・タグの形式や重複の可否は、利用するビルド処理が決める。対応する platform は上記の2種類。
 
-Dockerfile とビルドコンテキストの内容はレビューと Docker によるビルドで確認する。manifest の検証ではビルド入力の存在や内容は確認しない。
+同梱の Actions は GHCR にログインし、ビルドスクリプトは `image` に `:latest` を付けて push する。この Actions を使う場合は、`image` に書き込み可能なタグなし GHCR repository を指定する。
+
+Dockerfile とビルドコンテキストは、manifest の読み込み時点でリポジトリ内に存在することを必須とする。manifest の検証では、`context` がディレクトリ、`dockerfile` が通常ファイルであることを確認する。範囲内を指す相対 symlink は許可するが、マニフェストのディレクトリ外への参照と絶対 symlink は拒否する。内容は読み込まず、レビューと Docker によるビルドで確認する。
 
 ## 2. ローカルで検証する
 
