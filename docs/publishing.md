@@ -22,14 +22,13 @@ sandbox-images:
 
 `context` と `dockerfile` はmanifestルートからの相対パス。リポジトリ内の `.`、`..`、相対symlinkを許可するが、範囲外への参照・絶対symlinkは禁止する。contextはディレクトリ、Dockerfileは通常ファイルでなければならない。対応platformは `linux/amd64` と `linux/arm64`。
 
-ビルドスクリプトでは `image` に重複しない、タグ・digestなしのGHCR repositoryを指定する。移行元との `latest` 競合を避けるため、このリポジトリでは `dsa-resource-spec-sandbox-default` / `dsa-resource-spec-sandbox-runner` を使う。
+`resource-ci build-images` では `image` に重複しない、タグ・digestなしのGHCR repositoryを指定する。移行元との `latest` 競合を避けるため、このリポジトリでは `dsa-resource-spec-sandbox-default` / `dsa-resource-spec-sandbox-runner` を使う。
 
 ## PRでの検証
 
 ```sh
-go build -o /tmp/resource-spec ./cmd/resource-spec
-/tmp/resource-spec validate .
-RESOURCE_SPEC=/tmp/resource-spec python3 scripts/check_resources.py --base origin/main
+go build -o /tmp/resource-ci ./cmd/resource-ci
+/tmp/resource-ci check --base origin/main
 ```
 
 CIは次をチェックする。
@@ -39,7 +38,7 @@ CIは次をチェックする。
 - 未参照ファイルとsandboxのビルド設定・Dockerfileだけの変更には、課題のversion更新は不要。新イメージを課題に適用する際に、その課題のversionを上げる。
 - 公開済みJSONの変更・削除、既存indexエントリの変更・削除、同じversionの別内容への再利用は禁止する。
 
-変更検出には `resource-spec sources .` が返す課題IDごとのSHA-256を使う。これは生成元の識別用で、課題JSONには含めない。YAML解析・素材の読み込みはGo CLIに集約し、Python側では再実装しない。
+変更検出にはGoライブラリの `Manifest.SourceHashes` にある課題IDごとのSHA-256を使う。これは生成元の識別用で、課題JSONには含めない。`resource-ci` は `LoadManifest` を直接呼び出し、YAML解析・素材の読み込み・課題の検証をライブラリと共有する。
 
 ## mainでの公開順序
 
@@ -49,7 +48,7 @@ CIは次をチェックする。
 2. 登録された全sandboxを毎回Buildxでビルドする。イメージ別のGitHub Actionsキャッシュを使う。
 3. OCI形式でローカルに出力し、manifest/indexのdigestをGHCRの `latest` と比較する。同じならpushを省略する。
 4. digestが変わった場合、`YYYYMMDDHHMMSS-sha256-<64桁のdigest>` の固定タグでpushし、その後 `latest` を更新する。日時はUTC。固定タグは86文字。既存タグの認証・通信エラーは「イメージなし」と扱わず失敗する。
-5. 全イメージの処理が成功した後、未公開versionの課題を `show` でJSON化する。各タグをレジストリで解決し、`repository@sha256:...` に置換する。同じタグは1回の公開処理で一度だけ解決する。明示済みのdigestはそのまま保持する。
+5. 全イメージの処理が成功した後、未公開versionの課題をGoライブラリで読み込んだ `Resource` からJSON化する。各タグをレジストリで解決し、`repository@sha256:...` に置換する。同じタグは1回の公開処理で一度だけ解決する。明示済みのdigestはそのまま保持する。
 6. 課題JSONとindexを同じコミットでmainへ追加する。
 
 イメージ出力では `SOURCE_DATE_EPOCH=0` と `rewrite-timestamp=true` を使い、実行日時だけでdigestが変わらないようにする。provenance/SBOMの自動添付は無効にする。キャッシュの失効や外部パッケージの変更などによってdigestが変わることはある。ローカル出力には [BuildxのOCI exporter](https://docs.docker.com/build/exporters/oci-docker/) と、digestを保持してコピーする [regctl](https://github.com/regclient/regclient) を使う。
@@ -104,13 +103,23 @@ GHCRのパッケージ可視性と利用側のpull権限を設定する。イメ
 
 ## ローカルの開発・検証
 
-Pythonスクリプトは標準ライブラリのみを使う。Python 3.14、Git、Go CLIが必要。実際のイメージ公開にはDocker Buildxとregctl v0.8.3も必要。
+GoとGitが必要。実際のイメージ公開にはDocker Buildxとregctl v0.8.3も必要。
+
+GitHub Actions 用の処理は `cmd/resource-ci` と `internal/publishing` に置く。汎用の `resource-spec` CLI と分離し、公開一覧の型・検証、Git操作、イメージ公開、課題公開を役割ごとのファイルにまとめている。
+
+```sh
+go build -o /tmp/resource-ci ./cmd/resource-ci
+/tmp/resource-ci check --root . --base origin/main
+# 以下はGHCRとmainへ実際に公開する操作。build-imagesの成功後にpublishする。
+/tmp/resource-ci build-images --root .
+/tmp/resource-ci publish --root .
+```
+
+`--root` は省略するとカレントディレクトリ。Actions 内では `build-images --gha-cache` でキャッシュを有効にする。`publish` は `origin/main` へ公開し、生成コミットにはGitHub Actions botの名前を使う。
 
 ```sh
 go vet ./...
 go test ./...
-go build -o /tmp/resource-spec ./cmd/resource-spec
-RESOURCE_SPEC=/tmp/resource-spec python3 -B -m unittest discover -s tests -v
 ```
 
-テストは実際のCLI・一時Gitリポジトリ・ローカルbare remoteを使って、version検査、公開の不変性、再実行、連続するversionの公開、push競合を検証する。Docker・レジストリの外部コマンド境界はテスト用プロセスで代替するため、GHCRへの書き込みは行わない。
+公開処理のテストも `go test ./...` で実行する。実際のGoライブラリ・一時Gitリポジトリ・ローカルbare remoteを使って、version検査、公開の不変性、再実行、連続するversionの公開、push競合を検証する。Docker・レジストリ操作は状態を持つテスト用のコマンド実行処理で代替するため、GHCRへの書き込みは行わない。
