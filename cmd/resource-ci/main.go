@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dsa-uts/dsa-resource-spec/internal/publishing"
+	"github.com/dsa-uts/dsa-resource-spec/v2/internal/publishing"
 )
 
 func main() {

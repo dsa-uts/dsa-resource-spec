@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	resource "github.com/dsa-uts/dsa-resource-spec"
+	resource "github.com/dsa-uts/dsa-resource-spec/v2"
 	"golang.org/x/mod/semver"
 )
 

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
-	resource "github.com/dsa-uts/dsa-resource-spec"
+	resource "github.com/dsa-uts/dsa-resource-spec/v2"
 )
 
 var (

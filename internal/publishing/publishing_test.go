@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	resource "github.com/dsa-uts/dsa-resource-spec"
+	resource "github.com/dsa-uts/dsa-resource-spec/v2"
 )
 
 const testImage = "ghcr.io/example/default"
