@@ -4,7 +4,7 @@
 
 | やりたいこと | 読む文書 |
 | --- | --- |
-| 課題の定義を書く | [Resource 仕様](docs/resource.md) |
+| 課題の定義を書く | [リソース仕様](docs/resource.md) |
 | 課題を登録してイメージをビルドする | [登録・ビルド手順](docs/publishing.md) |
 | Backend・Judge を実装する | [実行規則](docs/runtime.md) |
 | 設計の理由を知る | [設計](docs/design.md) |
@@ -67,7 +67,7 @@ restored, err := resource.DecodeResource(bytes.NewReader(data))
 
 | 関数 | 用途 |
 | --- | --- |
-| `LoadManifest(dir string) (*Manifest, error)` | `manifest.yaml` と全課題を検証し、素材の読み込み・単位変換・既定値の補完を行う。 |
+| `LoadManifest(dir string) (*Manifest, error)` | `manifest.yaml` と全課題を検証し、参照ファイルの読み込み・単位変換・既定値の補完を行う。 |
 | `Resource.Hash() (string, error)` | 呼び出し時点の Resource の JSON から SHA-256 を計算する。 |
 | `DecodeResource(r io.Reader) (*Resource, error)` | 解決済み Resource の JSON を復元し、依存関係・実行制限などを検証する。未知フィールドと複数文書は拒否する。 |
 | `MatchOutput(actual, expected []byte, mode MatchMode) (bool, error)` | `MatchExact`・`MatchEasy`・`MatchSorted` で出力を比較する。未知・空のモードはエラー。不一致と不正な UTF-8 は `false, nil`。 |

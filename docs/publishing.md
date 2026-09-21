@@ -1,10 +1,10 @@
 # 課題の登録と公開
 
-このリポジトリで課題定義を検証し、sandboxイメージをGHCRへ、解決済み課題JSONをmainの `release/` へ公開する。GitHub Releaseは使わない。実データとして `ex1/`、ビルド定義として `sandbox/` と `sandbox-runner/` を登録している。旧リポジトリの公開履歴・イメージlockは移行しない。
+このリポジトリで課題定義を検証し、サンドボックスイメージを GHCR へ、解決済み課題 JSON を main の `release/` へ公開する。GitHub Release は使わない。実データとして `ex1/`、ビルド定義として `sandbox/` と `sandbox-runner/` を登録している。旧リポジトリの公開履歴・イメージの固定情報は移行しない。
 
 ## 課題の登録
 
-専用ディレクトリに [resource.yaml](resource.md) と参照素材を置き、ルートの `manifest.yaml` に登録する。
+専用ディレクトリに [resource.yaml](resource.md) と参照ファイルを置き、ルートの `manifest.yaml` に登録する。
 
 ```yaml
 resources:
@@ -18,35 +18,35 @@ sandbox-images:
     platforms: [linux/amd64]
 ```
 
-登録の `id` と `resource.id` は一致させる。`path` は `resource.yaml` を含むディレクトリ。課題内の `sandbox-image` には `ghcr.io/dsa-uts/dsa-resource-spec-sandbox-default:latest` のような完全なタグ参照、またはdigest参照を記述する。manifestのイメージIDを課題から参照する旧形式は使わない。
+登録の `id` と `resource.id` は一致させる。`path` は `resource.yaml` を含むディレクトリ。課題内の `sandbox-image` には `ghcr.io/dsa-uts/dsa-resource-spec-sandbox-default:latest` のような完全なタグ参照、またはダイジェスト参照を記述する。マニフェストのイメージ ID を課題から参照する旧形式は使わない。
 
-`context` と `dockerfile` はmanifestルートからの相対パス。リポジトリ内の `.`、`..`、相対symlinkを許可するが、範囲外への参照・絶対symlinkは禁止する。contextはディレクトリ、Dockerfileは通常ファイルでなければならない。対応platformは `linux/amd64` と `linux/arm64`。
+`context` と `dockerfile` はマニフェストを置いたディレクトリからの相対パス。リポジトリ内の `.`、`..`、相対パスのシンボリックリンクを許可するが、範囲外への参照・絶対パスのシンボリックリンクは禁止する。`context` はディレクトリ、`dockerfile` は通常ファイルでなければならない。対応プラットフォームは `linux/amd64` と `linux/arm64`。
 
-`resource-ci build-images` では `image` に重複しない、タグ・digestなしのGHCR repositoryを指定する。移行元との `latest` 競合を避けるため、このリポジトリでは `dsa-resource-spec-sandbox-default` / `dsa-resource-spec-sandbox-runner` を使う。
+`resource-ci build-images` では `image` に重複しない、タグ・ダイジェストを含まない GHCR リポジトリ名を指定する。移行元との `latest` 競合を避けるため、このリポジトリでは `dsa-resource-spec-sandbox-default` / `dsa-resource-spec-sandbox-runner` を使う。
 
-## PRでの検証
+## PR での検証
 
 ```sh
 go build -o /tmp/resource-ci ./cmd/resource-ci
 /tmp/resource-ci check
 ```
 
-CIは現在の課題定義・参照素材と、公開index・JSONの形式や整合性を検証する。`resource-ci` は `LoadManifest` を直接呼び出し、YAML解析・素材の読み込み・課題の検証をライブラリと共有する。
+CI は現在の課題定義・参照ファイルと、公開一覧・JSON の形式や整合性を検証する。`resource-ci` は `LoadManifest` を直接呼び出し、YAML 解析・参照ファイルの読み込み・課題の検証をライブラリと共有する。
 
-新バージョンを公開するには `resource.yaml` の `resource.version` を未公開の値に更新する。初回登録時も、そのversionのJSONを追加する。
+新バージョンを公開するには `resource.yaml` の `resource.version` を未公開の値に更新する。初回登録時も、そのバージョンの JSON を追加する。
 
-## mainでの公開順序
+## main での公開順序
 
-[Resources workflow](../.github/workflows/resources.yml) はmainへのpush、またはmainを指定した手動実行で以下を行う。PRからのpush権限は与えない。
+[Resources workflow](../.github/workflows/resources.yml) は main への push、または main を指定した手動実行で以下を行う。PR からの push 権限は与えない。
 
 1. 対象コミットを検証する。
-2. 登録された全sandboxを毎回Buildxでビルドする。イメージ別のGitHub Actionsキャッシュを使う。
-3. OCI形式でローカルに出力し、manifest/indexのdigestをGHCRの `latest` と比較する。同じならpushを省略する。
-4. digestが変わった場合、`YYYYMMDDHHMMSS-sha256-<64桁のdigest>` の固定タグでpushし、その後 `latest` を更新する。日時はUTC。固定タグは86文字。既存タグの認証・通信エラーは「イメージなし」と扱わず失敗する。
-5. 全イメージの処理が成功した後、未公開versionの課題をGoライブラリで読み込んだ `Resource` からJSON化する。各タグをレジストリで解決し、`repository@sha256:...` に置換する。同じタグは1回の公開処理で一度だけ解決する。明示済みのdigestはそのまま保持する。
-6. 課題JSONとindexを同じコミットでmainへ追加する。
+2. 登録されたすべてのサンドボックスイメージを毎回 Buildx でビルドする。イメージ別の GitHub Actions キャッシュを使う。
+3. OCI 形式でローカルに出力し、マニフェストまたはインデックスのダイジェストを GHCR の `latest` と比較する。同じなら push を省略する。
+4. ダイジェストが変わった場合、`YYYYMMDDHHMMSS-sha256-<64桁のdigest>` の固定タグで push し、その後 `latest` を更新する。日時は UTC。固定タグは 86 文字。既存タグの確認時に認証・通信エラーが発生した場合は、「イメージなし」と扱わず処理を失敗させる。
+5. 全イメージの処理が成功した後、未公開バージョンの課題を Go ライブラリで読み込んだ `Resource` から JSON 化する。各タグをレジストリで解決し、`repository@sha256:...` に置換する。同じタグは 1 回の公開処理で一度だけ解決する。明示済みのダイジェストはそのまま保持する。
+6. 課題 JSON と公開一覧を同じコミットで main へ追加する。
 
-ビルド・push・タグ解決のいずれかが失敗すると、その実行では課題JSONを公開しない。複数イメージの途中で失敗した場合、先に成功したイメージのタグ更新は戻さない。
+ビルド・push・タグ解決のいずれかが失敗すると、その実行では課題 JSON を公開しない。複数イメージの途中で失敗した場合、先に成功したイメージのタグ更新は戻さない。
 
 ## 公開ファイル
 
@@ -58,7 +58,7 @@ release/
     v1.1.0.json
 ```
 
-課題JSONは `Resource` の既存形式を維持し、素材も内包する。`DecodeResource` にそのまま渡せる。生成元のコミット情報はindexに記録する。
+課題 JSON は `Resource` の既存形式を維持し、参照ファイルの内容も含む。`DecodeResource` にそのまま渡せる。生成元のコミット情報は公開一覧に記録する。
 
 ```json
 {
@@ -76,15 +76,15 @@ release/
 
 `path` はリポジトリルート基準。
 
-## GitHub側の設定
+## GitHub 側の設定
 
-公開jobは `GITHUB_TOKEN` の `contents: write` と `packages: write` を使う。mainのルールは、このCIによる生成コミットの直接pushを許可する必要がある。
+公開ジョブは `GITHUB_TOKEN` の `contents: write` と `packages: write` を使う。main ブランチのルールは、この CI による生成コミットの直接 push を許可する必要がある。
 
 ## ローカルの開発・検証
 
-GoとGitが必要。実際のイメージ公開にはDocker Buildxとregctl v0.8.3も必要。
+Go と Git が必要。実際のイメージ公開には Docker Buildx と regctl v0.8.3 も必要。
 
-GitHub Actions 用の処理は `cmd/resource-ci` と `internal/publishing` に置く。汎用の `resource-spec` CLI と分離し、公開一覧の型・検証、Git操作、イメージ公開、課題公開を役割ごとのファイルにまとめている。
+GitHub Actions 用の処理は `cmd/resource-ci` と `internal/publishing` に置く。汎用の `resource-spec` CLI と分離し、公開一覧の型・検証、Git 操作、イメージ公開、課題公開を役割ごとのファイルにまとめている。
 
 ```sh
 go build -o /tmp/resource-ci ./cmd/resource-ci
@@ -94,7 +94,7 @@ go build -o /tmp/resource-ci ./cmd/resource-ci
 /tmp/resource-ci publish --root .
 ```
 
-`--root` は省略するとカレントディレクトリ。Actions 内では `build-images --gha-cache` でキャッシュを有効にする。`publish` は `origin/main` へ公開し、生成コミットにはGitHub Actions botの名前を使う。
+`--root` は省略するとカレントディレクトリ。Actions 内では `build-images --gha-cache` でキャッシュを有効にする。`publish` は `origin/main` へ公開し、生成コミットには GitHub Actions bot の名前を使う。
 
 ```sh
 go vet ./...

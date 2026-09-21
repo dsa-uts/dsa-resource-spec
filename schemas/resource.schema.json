@@ -117,7 +117,8 @@
                     },
                     "memory": {
                       "type": "string",
-                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$"
+                      "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
+                      "default": "128MiB"
                     },
                     "pids": {
                       "type": "integer",
@@ -149,7 +150,6 @@
                     }
                   },
                   "required": [
-                    "memory",
                     "step-timeout"
                   ],
                   "additionalProperties": false
