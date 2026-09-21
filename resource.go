@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 )
 
 // Resource contains resolved data and retains neither source paths nor file handles.
@@ -34,8 +33,8 @@ func DecodeResource(r io.Reader) (*Resource, error) {
 	return &result, nil
 }
 
-func loadResource(root *os.Root, dir string) (*Resource, error) {
-	data, _, err := readMaterial(root, dir+"/resource.yaml")
+func loadResource(root *sourceReader, dir string) (*Resource, error) {
+	data, _, err := root.read(dir + "/resource.yaml")
 	if err != nil {
 		return nil, err
 	}

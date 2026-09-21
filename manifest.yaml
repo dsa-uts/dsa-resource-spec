@@ -1,3 +1,14 @@
-# 登録する課題とイメージのビルド定義をここに追加します。
-resources: []
-sandbox-images: {}
+resources:
+  - id: ex1
+    path: ex1
+sandbox-images:
+  default:
+    context: sandbox
+    dockerfile: sandbox/Dockerfile
+    image: ghcr.io/dsa-uts/dsa-resource-spec-sandbox-default
+    platforms: [linux/amd64]
+  runner:
+    context: sandbox-runner
+    dockerfile: sandbox-runner/Dockerfile
+    image: ghcr.io/dsa-uts/dsa-resource-spec-sandbox-runner
+    platforms: [linux/amd64]
