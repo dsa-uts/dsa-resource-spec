@@ -48,9 +48,6 @@ CLI の実行に Go は不要だが、課題公開には引き続き Git・Docke
 
 ## Go から使う
 
-`MatchOutput` は v1.1.0 で追加。既存の import パスは変更せずに利用できる。
-モジュールのリリースバージョンは Git タグで管理し、課題ごとの `resource.version` とは独立している。
-
 ```go
 import resource "github.com/dsa-uts/dsa-resource-spec"
 ```
@@ -82,5 +79,5 @@ if want := step.Expected.Stdout; want != nil {
 }
 ```
 
-期待値が省略されている場合は呼び出し側で比較を省く。`nil` のバイト列は空出力として扱い、入力は変更しない。
+期待値が省略されている場合は呼び出し側で比較を省く。
 詳しい比較規則は [出力の比較](docs/runtime.md#出力の比較) を参照。
