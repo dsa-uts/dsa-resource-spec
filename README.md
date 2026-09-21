@@ -33,6 +33,19 @@ go run ./cmd/resource-spec show <manifest-dir> <resource-id>
 
 GitHub Actions 用の検証・公開処理は、別CLIの `resource-ci` に分離している。使い方は [公開手順](docs/publishing.md) を参照。
 
+### CLI のリリース
+
+[CLI Release workflow](.github/workflows/cli-release.yml) をデフォルトブランチに追加後、
+Actions の **CLI Release → Run workflow** で、push 済みのタグ（例: `v1.0.0`）を指定する。
+指定タグのソースを検証・ビルドして GitHub Release を作成する。既存タグの付け替えは不要。
+タグは `vMAJOR.MINOR.PATCH` 形式に対応し、既存 Release の上書きは行わない。
+
+Linux / macOS の amd64 / arm64 向けに、`resource-spec`・`resource-ci`・LICENSE をまとめた
+`resource-cli-<tag>-<os>-<arch>.tar.gz` と `checksums.txt` を配布する。
+利用側はバージョンを固定してダウンロードし、チェックサムを照合して展開した CLI を使う。
+CLI の実行に Go は不要だが、課題公開には引き続き Git・Docker Buildx・regctl が必要。
+課題 JSON の `release/` への公開とは別の処理である。
+
 ## Go から使う
 
 ```go
