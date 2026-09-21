@@ -12,9 +12,8 @@
 ## 開発環境
 
 * Go 1.27
-* Python 3.14
 
-GoやPythonの環境はNix, direnvで設定することも可。
+Goの環境はNix, direnvで設定することも可。
 
 ```
 direnv allow .
@@ -28,11 +27,11 @@ check
 go run ./cmd/resource-spec validate <manifest-dir>
 # マニフェストと登録された全課題のメタデータを JSON 出力する
 go run ./cmd/resource-spec catalog <manifest-dir>
-# version更新の検査に使う、課題定義・参照素材のハッシュを出力する
-go run ./cmd/resource-spec sources <manifest-dir>
 # 指定した課題の解決済み JSON を出力する
 go run ./cmd/resource-spec show <manifest-dir> <resource-id>
 ```
+
+GitHub Actions 用の検証・公開処理は、別CLIの `resource-ci` に分離している。使い方は [公開手順](docs/publishing.md) を参照。
 
 ## Go から使う
 
@@ -52,5 +51,5 @@ restored, err := resource.DecodeResource(bytes.NewReader(data))
 | 関数 | 用途 |
 | --- | --- |
 | `LoadManifest(dir string) (*Manifest, error)` | `manifest.yaml` と全課題を検証し、素材の読み込み・単位変換・既定値の補完を行う。 |
+| `Resource.Hash() (string, error)` | 呼び出し時点の Resource の JSON から SHA-256 を計算する。 |
 | `DecodeResource(r io.Reader) (*Resource, error)` | 解決済み Resource の JSON を復元し、依存関係・実行制限などを検証する。未知フィールドと複数文書は拒否する。 |
-

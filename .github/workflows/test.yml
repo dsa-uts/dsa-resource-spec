@@ -15,10 +15,3 @@ jobs:
           go-version-file: go.mod
       - run: go vet ./...
       - run: go test -race ./...
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.14'
-      - name: Test publication scripts
-        run: |
-          go build -o "$RUNNER_TEMP/resource-spec" ./cmd/resource-spec
-          RESOURCE_SPEC="$RUNNER_TEMP/resource-spec" python3 -B -m unittest discover -s tests -v

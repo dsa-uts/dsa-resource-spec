@@ -15,10 +15,10 @@
         in {
           default = pkgs.devshell.mkShell {
             name = "dsa-resource-spec";
-            packages = [ pkgs.go_1_27 pkgs.python3 pkgs.gopls pkgs.git pkgs.direnv pkgs.nix-direnv ];
+            packages = [ pkgs.go_1_27 pkgs.gopls pkgs.git pkgs.direnv pkgs.nix-direnv ];
             env = [ { name = "GOTOOLCHAIN"; value = "local"; } ];
             commands = [
-              { name = "check"; command = "go vet ./... && go test ./... && python3 -B -m unittest discover -s tests -v"; help = "Vet and test all packages"; }
+              { name = "check"; command = "go vet ./... && go test ./..."; help = "Vet and test all packages"; }
             ];
           };
         });

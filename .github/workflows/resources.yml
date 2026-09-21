@@ -19,30 +19,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.14'
-      - name: Build Resource CLI
+      - name: Build Resource CI CLI
         run: |
           mkdir -p "$RUNNER_TEMP/resource-bin"
-          go build -o "$RUNNER_TEMP/resource-bin/resource-spec" ./cmd/resource-spec
+          go build -o "$RUNNER_TEMP/resource-bin/resource-ci" ./cmd/resource-ci
           echo "$RUNNER_TEMP/resource-bin" >> "$GITHUB_PATH"
-      - name: Validate resources and version changes
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PUSH_BASE: ${{ github.event.before }}
-        run: |
-          resource-spec validate .
-          base="${PR_BASE:-$PUSH_BASE}"
-          if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
-            base="$(git rev-parse HEAD^)"
-          fi
-          python3 scripts/check_resources.py --base "$base"
+      - name: Validate resources
+        run: resource-ci check
   publish:
     needs: validate
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
@@ -59,13 +46,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.14'
       - name: Build publication tools
         run: |
           mkdir -p "$RUNNER_TEMP/resource-bin"
-          go build -o "$RUNNER_TEMP/resource-bin/resource-spec" ./cmd/resource-spec
+          go build -o "$RUNNER_TEMP/resource-bin/resource-ci" ./cmd/resource-ci
           GOBIN="$RUNNER_TEMP/resource-bin" go install github.com/regclient/regclient/cmd/regctl@v0.8.3
           echo "$RUNNER_TEMP/resource-bin" >> "$GITHUB_PATH"
       - uses: docker/setup-qemu-action@v3
@@ -77,6 +61,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: crazy-max/ghaction-github-runtime@v3
       - name: Build and publish sandbox images
-        run: python3 scripts/build_images.py --gha-cache
+        run: resource-ci build-images --gha-cache
       - name: Publish resource snapshots
-        run: python3 scripts/publish_resources.py
+        run: resource-ci publish
