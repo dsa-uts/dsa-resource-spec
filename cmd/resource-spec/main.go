@@ -19,9 +19,9 @@ func main() {
 
 func run(args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: resource-spec <validate|catalog|sources> MANIFEST_DIRECTORY | show MANIFEST_DIRECTORY RESOURCE_ID")
+		return fmt.Errorf("usage: resource-spec <validate|catalog> MANIFEST_DIRECTORY | show MANIFEST_DIRECTORY RESOURCE_ID")
 	}
-	if args[0] != "validate" && args[0] != "catalog" && args[0] != "show" && args[0] != "sources" {
+	if args[0] != "validate" && args[0] != "catalog" && args[0] != "show" {
 		return fmt.Errorf("unknown command %q", args[0])
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
@@ -42,8 +42,6 @@ func run(args []string, out io.Writer) error {
 	switch args[0] {
 	case "validate":
 		return nil
-	case "sources":
-		return json.NewEncoder(out).Encode(manifest.SourceHashes)
 	case "catalog":
 		catalog := struct {
 			Resources     []resource.Metadata            `json:"resources"`

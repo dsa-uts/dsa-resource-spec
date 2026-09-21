@@ -27,8 +27,6 @@ check
 go run ./cmd/resource-spec validate <manifest-dir>
 # マニフェストと登録された全課題のメタデータを JSON 出力する
 go run ./cmd/resource-spec catalog <manifest-dir>
-# version更新の検査に使う、課題定義・参照素材のハッシュを出力する
-go run ./cmd/resource-spec sources <manifest-dir>
 # 指定した課題の解決済み JSON を出力する
 go run ./cmd/resource-spec show <manifest-dir> <resource-id>
 ```
@@ -53,4 +51,5 @@ restored, err := resource.DecodeResource(bytes.NewReader(data))
 | 関数 | 用途 |
 | --- | --- |
 | `LoadManifest(dir string) (*Manifest, error)` | `manifest.yaml` と全課題を検証し、素材の読み込み・単位変換・既定値の補完を行う。 |
+| `Resource.Hash() (string, error)` | 呼び出し時点の Resource の JSON から SHA-256 を計算する。 |
 | `DecodeResource(r io.Reader) (*Resource, error)` | 解決済み Resource の JSON を復元し、依存関係・実行制限などを検証する。未知フィールドと複数文書は拒否する。 |
