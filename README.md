@@ -1,6 +1,6 @@
 # dsa-resource-spec
 
-課題定義 `resource.yaml` を検証・読み込みする Go ライブラリと CLI。
+課題定義 `resource.yaml` を検証・読み込みする Go ライブラリと CLI。実際の課題は `ex1/` に置き、mainのCIでsandboxイメージと `release/` の課題JSONを公開する。
 
 | やりたいこと | 読む文書 |
 | --- | --- |
@@ -28,6 +28,8 @@ check
 go run ./cmd/resource-spec validate <manifest-dir>
 # マニフェストと登録された全課題のメタデータを JSON 出力する
 go run ./cmd/resource-spec catalog <manifest-dir>
+# version更新の検査に使う、課題定義・参照素材のハッシュを出力する
+go run ./cmd/resource-spec sources <manifest-dir>
 # 指定した課題の解決済み JSON を出力する
 go run ./cmd/resource-spec show <manifest-dir> <resource-id>
 ```
