@@ -14,8 +14,6 @@ import (
 type Manifest struct {
 	Resources     []Resource            `json:"resources"`
 	SandboxImages map[string]ImageBuild `json:"sandbox-images"`
-	// SourceHashes covers each definition and its referenced materials, before image tag resolution.
-	SourceHashes map[string]string `json:"-"`
 }
 type manifestInput struct {
 	Resources     []resourceEntry          `yaml:"resources"`
@@ -64,7 +62,7 @@ func LoadManifest(dir string) (*Manifest, error) {
 	if err := validateBuilds(root, images); err != nil {
 		return nil, err
 	}
-	manifest := &Manifest{Resources: make([]Resource, 0, len(input.Resources)), SandboxImages: images, SourceHashes: make(map[string]string)}
+	manifest := &Manifest{Resources: make([]Resource, 0, len(input.Resources)), SandboxImages: images}
 	ids, paths := map[string]bool{}, map[string]bool{}
 	for _, entry := range input.Resources {
 		if ids[entry.ID] || paths[entry.Path] {
@@ -74,8 +72,7 @@ func LoadManifest(dir string) (*Manifest, error) {
 		if err := validateSourcePath(entry.Path); err != nil {
 			return nil, err
 		}
-		reader := &sourceReader{root: root, hashes: make(map[string]string)}
-		resource, err := loadResource(reader, entry.Path)
+		resource, err := loadResource(root, entry.Path)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", entry.Path, err)
 		}
@@ -83,7 +80,6 @@ func LoadManifest(dir string) (*Manifest, error) {
 			return nil, fmt.Errorf("resource ID mismatch: %s", entry.ID)
 		}
 		manifest.Resources = append(manifest.Resources, *resource)
-		manifest.SourceHashes[entry.ID] = reader.hash()
 	}
 	return manifest, nil
 }

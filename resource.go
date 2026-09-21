@@ -2,9 +2,11 @@
 package resource
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 )
 
 // Resource contains resolved data and retains neither source paths nor file handles.
@@ -12,6 +14,15 @@ import (
 type Resource struct {
 	Metadata  Metadata            `json:"metadata"`
 	Workflows map[string]Workflow `json:"workflows"`
+}
+
+// Hash returns the SHA-256 of the Resource's current JSON encoding.
+func (r Resource) Hash() (string, error) {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("sha256:%x", sha256.Sum256(data)), nil
 }
 
 // DecodeResource restores one resolved JSON resource, rejecting unknown fields
@@ -33,8 +44,8 @@ func DecodeResource(r io.Reader) (*Resource, error) {
 	return &result, nil
 }
 
-func loadResource(root *sourceReader, dir string) (*Resource, error) {
-	data, _, err := root.read(dir + "/resource.yaml")
+func loadResource(root *os.Root, dir string) (*Resource, error) {
+	data, _, err := readMaterial(root, dir+"/resource.yaml")
 	if err != nil {
 		return nil, err
 	}

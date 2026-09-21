@@ -3,6 +3,7 @@ package resource
 import (
 	"fmt"
 	"math"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -38,10 +39,10 @@ func duration(value string) (time.Duration, error) {
 	return d, nil
 }
 
-func resolveWorkflow(root *sourceReader, dir string, raw rawWorkflow) (Workflow, error) {
+func resolveWorkflow(root *os.Root, dir string, raw rawWorkflow) (Workflow, error) {
 	result := Workflow{Name: raw.Name, Jobs: make(map[string]Job)}
 	if raw.DescriptionPath != "" {
-		content, _, err := root.read(dir + "/" + raw.DescriptionPath)
+		content, _, err := readMaterial(root, dir+"/"+raw.DescriptionPath)
 		if err != nil {
 			return result, err
 		}
@@ -50,7 +51,7 @@ func resolveWorkflow(root *sourceReader, dir string, raw rawWorkflow) (Workflow,
 	if raw.Presets != nil {
 		result.Presets = make([]Preset, 0, len(raw.Presets.Files))
 		for _, preset := range raw.Presets.Files {
-			content, executable, err := root.read(dir + "/" + preset.Source)
+			content, executable, err := readMaterial(root, dir+"/"+preset.Source)
 			if err != nil {
 				return result, err
 			}
@@ -67,7 +68,7 @@ func resolveWorkflow(root *sourceReader, dir string, raw rawWorkflow) (Workflow,
 	return result, nil
 }
 
-func resolveJob(root *sourceReader, dir string, raw rawJob) (Job, error) {
+func resolveJob(root *os.Root, dir string, raw rawJob) (Job, error) {
 	job := Job{Name: raw.Name, Visibility: raw.Visibility, Depends: raw.Depends, SandboxImage: raw.SandboxImage}
 	if job.Visibility == "" {
 		job.Visibility = "public"
@@ -152,13 +153,13 @@ func resolveJob(root *sourceReader, dir string, raw rawJob) (Job, error) {
 	return job, nil
 }
 
-func resolveStream(root *sourceReader, dir string, stream *rawStream) ([]byte, error) {
+func resolveStream(root *os.Root, dir string, stream *rawStream) ([]byte, error) {
 	if stream == nil {
 		return nil, nil
 	}
 	if stream.Value != nil {
 		return []byte(*stream.Value), nil
 	}
-	content, _, err := root.read(dir + "/" + stream.Path)
+	content, _, err := readMaterial(root, dir+"/"+stream.Path)
 	return content, err
 }

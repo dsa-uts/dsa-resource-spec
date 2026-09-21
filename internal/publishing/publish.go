@@ -106,13 +106,18 @@ func appendReleases(tree string, manifest *resource.Manifest, index releaseIndex
 		if !ok {
 			return nil, fmt.Errorf("missing resolved resource: %s", id)
 		}
+		// Hash the same pinned Resource that is published.
+		resourceHash, err := pinned.Hash()
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", id, err)
+		}
 		if err := writeJSON(target, pinned); err != nil {
 			return nil, err
 		}
 		if index.Resources[id] == nil {
 			index.Resources[id] = make(map[string]releaseEntry)
 		}
-		index.Resources[id][version] = releaseEntry{relative, sourceCommit, manifest.SourceHashes[id]}
+		index.Resources[id][version] = releaseEntry{relative, sourceCommit, resourceHash}
 		added = append(added, id+"/"+version)
 	}
 	if len(added) > 0 {

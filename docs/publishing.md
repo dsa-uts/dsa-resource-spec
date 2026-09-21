@@ -33,7 +33,7 @@ go build -o /tmp/resource-ci ./cmd/resource-ci
 
 CIは現在の課題定義・参照素材と、公開index・JSONの形式や整合性を検証する。`resource-ci` は `LoadManifest` を直接呼び出し、YAML解析・素材の読み込み・課題の検証をライブラリと共有する。
 
-同じversionのまま課題定義や素材を変更してもよい。過去のコミットとの比較や、source-hashの照合は行わない。公開済みのversionはスキップするため、変更を公開するには `resource.yaml` の `resource.version` を未公開の値に更新する。初回登録時も、そのversionのJSONを追加する。versionの増加順序は検査しない。
+同じversionのまま課題定義や素材を変更してもよい。過去のコミットとの比較や、resource-hashの照合は行わない。公開済みのversionはスキップするため、変更を公開するには `resource.yaml` の `resource.version` を未公開の値に更新する。初回登録時も、そのversionのJSONを追加する。versionの増加順序は検査しない。
 
 ## mainでの公開順序
 
@@ -69,14 +69,14 @@ release/
       "v1.0.0": {
         "path": "release/ex1/v1.0.0.json",
         "source-commit": "<生成元コミットの完全なSHA>",
-        "source-hash": "sha256:<課題定義と参照素材のハッシュ>"
+        "resource-hash": "sha256:<イメージタグ固定後のResourceのJSONのハッシュ>"
       }
     }
   }
 }
 ```
 
-`path` はリポジトリルート基準。versionの列挙順には意味を持たせない。`source-hash` は生成時の課題定義と参照素材を識別する記録として保持し、照合には使わない。`source-commit` はCIが生成物を保存したコミットではなく、課題を生成したコミットを指す。
+`path` はリポジトリルート基準。versionの列挙順には意味を持たせない。`resource-hash` はイメージタグをdigestに固定した公開対象の `Resource` を `json.Marshal` でJSON化し、そのバイト列のSHA-256を計算した記録で、公開判定には使わない。公開JSONを `DecodeResource` で読み込み、`Hash()` を呼ぶと同じ値を計算できる（整形されたJSONファイル自体のハッシュではない）。素材の内容やプリセットの実行可能フラグは含まれるが、YAMLのコメント・書式や参照元パスは含まれない。`source-commit` はCIが生成物を保存したコミットではなく、課題を生成したコミットを指す。
 
 公開済みJSONは将来の `latest` 更新に追従しない。manifestから課題を取り除いても過去の公開ファイルは保持する。公開済み課題が参照するイメージ・固定タグもGHCRから削除しない運用とする。初期のindexは空で、初回公開はmainのCIで行う。
 

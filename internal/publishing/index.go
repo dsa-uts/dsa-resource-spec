@@ -24,7 +24,7 @@ var (
 type releaseEntry struct {
 	Path         string `json:"path"`
 	SourceCommit string `json:"source-commit"`
-	SourceHash   string `json:"source-hash"`
+	ResourceHash string `json:"resource-hash"`
 }
 
 type releaseIndex struct {
@@ -86,7 +86,7 @@ func readIndex(root string) (releaseIndex, error) {
 			if err != nil {
 				return index, err
 			}
-			if entry.Path != relative || !commitPattern.MatchString(entry.SourceCommit) || !digestPattern.MatchString(entry.SourceHash) {
+			if entry.Path != relative || !commitPattern.MatchString(entry.SourceCommit) || !digestPattern.MatchString(entry.ResourceHash) {
 				return index, fmt.Errorf("invalid release entry: %s/%s", id, version)
 			}
 			file := filepath.Join(root, relative)

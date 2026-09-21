@@ -1,11 +1,3 @@
 {
-  "resources": {
-    "ex1": {
-      "v1.0.0": {
-        "path": "release/ex1/v1.0.0.json",
-        "source-commit": "829e0114f461386ddc643db54ae7d5d134c879ac",
-        "source-hash": "sha256:86893f82260b083e887f0a34ae57a8e5e3d64a70aea0205d63e84384d022fdc2"
-      }
-    }
-  }
+  "resources": {}
 }
