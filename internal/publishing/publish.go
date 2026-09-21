@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	resource "github.com/dsa-uts/dsa-resource-spec/v2"
+	resource "github.com/dsa-uts/dsa-resource-spec"
 )
 
 const maxPushAttempts = 5

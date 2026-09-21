@@ -3,7 +3,7 @@ package resource_test
 import (
 	"testing"
 
-	resource "github.com/dsa-uts/dsa-resource-spec/v2"
+	resource "github.com/dsa-uts/dsa-resource-spec"
 )
 
 func TestMatchOutput(t *testing.T) {

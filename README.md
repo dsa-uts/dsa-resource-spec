@@ -36,7 +36,7 @@ GitHub Actions 用の検証・公開処理は、別CLIの `resource-ci` に分�
 ### CLI のリリース
 
 [CLI Release workflow](.github/workflows/cli-release.yml) をデフォルトブランチに追加後、
-Actions の **CLI Release → Run workflow** で、push 済みのタグ（例: `v2.0.0`）を指定する。
+Actions の **CLI Release → Run workflow** で、push 済みのタグ（例: `v1.1.0`）を指定する。
 指定タグのソースを検証・ビルドして GitHub Release を作成する。既存タグの付け替えは不要。
 タグは `vMAJOR.MINOR.PATCH` 形式に対応し、既存 Release の上書きは行わない。
 
@@ -48,12 +48,11 @@ CLI の実行に Go は不要だが、課題公開には引き続き Git・Docke
 
 ## Go から使う
 
-v2.0.0 からモジュールパスは `github.com/dsa-uts/dsa-resource-spec/v2`。
-v1 から移行する場合は import パスに `/v2` を追加する。
+`MatchOutput` は v1.1.0 で追加。既存の import パスは変更せずに利用できる。
 モジュールのリリースバージョンは Git タグで管理し、課題ごとの `resource.version` とは独立している。
 
 ```go
-import resource "github.com/dsa-uts/dsa-resource-spec/v2"
+import resource "github.com/dsa-uts/dsa-resource-spec"
 ```
 
 ```go

@@ -1,6 +1,6 @@
 package publishing
 
-import resource "github.com/dsa-uts/dsa-resource-spec/v2"
+import resource "github.com/dsa-uts/dsa-resource-spec"
 
 // Check validates the current resources and release index.
 func Check(root string) error {

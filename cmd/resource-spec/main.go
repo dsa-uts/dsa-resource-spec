@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	resource "github.com/dsa-uts/dsa-resource-spec/v2"
+	resource "github.com/dsa-uts/dsa-resource-spec"
 )
 
 func main() {

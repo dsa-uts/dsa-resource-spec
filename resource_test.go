@@ -3,7 +3,7 @@ package resource_test
 import (
 	"bytes"
 	"encoding/json"
-	resource "github.com/dsa-uts/dsa-resource-spec/v2"
+	resource "github.com/dsa-uts/dsa-resource-spec"
 	"os"
 	"path/filepath"
 	"reflect"

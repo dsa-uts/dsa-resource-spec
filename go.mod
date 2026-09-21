@@ -1,4 +1,4 @@
-module github.com/dsa-uts/dsa-resource-spec/v2
+module github.com/dsa-uts/dsa-resource-spec
 
 go 1.27.0
 
