@@ -1,6 +1,6 @@
 # dsa-resource-spec
 
-課題定義 `resource.yaml` を検証・読み込みする Go ライブラリと CLI。実際の課題は `ex1/` に置き、mainのCIでsandboxイメージと `release/` の課題JSONを公開する。
+課題定義 `resource.yaml` を検証・読み込みする Go ライブラリと CLI。
 
 | やりたいこと | 読む文書 |
 | --- | --- |
