@@ -28,8 +28,6 @@ func TestInvalidArguments(t *testing.T) {
 }
 
 func TestCheckCommand(t *testing.T) {
-	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
-	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	root := filepath.Join(t.TempDir(), "source")
 	if err := os.CopyFS(root, os.DirFS("../../testdata/cli/valid/basic/input")); err != nil {
 		t.Fatal(err)

@@ -33,8 +33,7 @@ func (p publisher) publish(root string) error {
 	if err != nil {
 		return err
 	}
-	// These caches outlive each worktree: push retries must reuse the exact images.
-	resolved := make(map[string]resource.Resource)
+	// This cache outlives each worktree: push retries must reuse the exact images.
 	digests := make(map[string]string)
 	for attempt := 1; attempt <= maxPushAttempts; attempt++ {
 		err := p.withPublicationTree(root, func(tree string) error {
@@ -42,10 +41,7 @@ func (p publisher) publish(root string) error {
 			if err != nil {
 				return err
 			}
-			if err := p.resolveUnpublished(manifest, index, resolved, digests); err != nil {
-				return err
-			}
-			added, err := appendReleases(tree, manifest, index, resolved, sourceCommit)
+			added, err := p.appendReleases(tree, manifest, index, digests, sourceCommit)
 			if err != nil {
 				return err
 			}
@@ -67,24 +63,7 @@ func (p publisher) publish(root string) error {
 	return fmt.Errorf("main kept advancing; rerun this workflow to publish")
 }
 
-func (p publisher) resolveUnpublished(manifest *resource.Manifest, index releaseIndex, resolved map[string]resource.Resource, digests map[string]string) error {
-	for _, item := range manifest.Resources {
-		id, version := item.Metadata.ID, item.Metadata.Version
-		if _, ok := index.Resources[id][version]; ok {
-			continue
-		}
-		if _, ok := resolved[id]; !ok {
-			pinned, err := p.pinImages(item, digests)
-			if err != nil {
-				return err
-			}
-			resolved[id] = pinned
-		}
-	}
-	return nil
-}
-
-func appendReleases(tree string, manifest *resource.Manifest, index releaseIndex, resolved map[string]resource.Resource, sourceCommit string) ([]string, error) {
+func (p publisher) appendReleases(tree string, manifest *resource.Manifest, index releaseIndex, digests map[string]string, sourceCommit string) ([]string, error) {
 	var added []string
 	for _, item := range manifest.Resources {
 		id, version := item.Metadata.ID, item.Metadata.Version
@@ -102,9 +81,9 @@ func appendReleases(tree string, manifest *resource.Manifest, index releaseIndex
 		if info, err := os.Lstat(filepath.Dir(target)); err == nil && info.Mode()&os.ModeSymlink != 0 {
 			return nil, fmt.Errorf("refusing to write through symlink: %s", relative)
 		}
-		pinned, ok := resolved[id]
-		if !ok {
-			return nil, fmt.Errorf("missing resolved resource: %s", id)
+		pinned, err := p.pinImages(item, digests)
+		if err != nil {
+			return nil, err
 		}
 		// Hash the same pinned Resource that is published.
 		resourceHash, err := pinned.Hash()

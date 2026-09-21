@@ -16,7 +16,7 @@ import (
 
 var (
 	identifier    = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
-	fullVersion   = regexp.MustCompile(`^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`)
+	fullVersion   = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+].*)?$`)
 	digestPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 	commitPattern = regexp.MustCompile(`^[0-9a-f]{40,64}$`)
 )
