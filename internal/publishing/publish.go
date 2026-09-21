@@ -70,10 +70,7 @@ func (p publisher) publish(root string) error {
 func (p publisher) resolveUnpublished(manifest *resource.Manifest, index releaseIndex, resolved map[string]resource.Resource, digests map[string]string) error {
 	for _, item := range manifest.Resources {
 		id, version := item.Metadata.ID, item.Metadata.Version
-		if existing, ok := index.Resources[id][version]; ok {
-			if existing.SourceHash != manifest.SourceHashes[id] {
-				return fmt.Errorf("%s/%s: published version has different source", id, version)
-			}
+		if _, ok := index.Resources[id][version]; ok {
 			continue
 		}
 		if _, ok := resolved[id]; !ok {

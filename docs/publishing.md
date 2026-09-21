@@ -28,17 +28,12 @@ sandbox-images:
 
 ```sh
 go build -o /tmp/resource-ci ./cmd/resource-ci
-/tmp/resource-ci check --base origin/main
+/tmp/resource-ci check
 ```
 
-CIは次をチェックする。
+CIは現在の課題定義・参照素材と、公開index・JSONの形式や整合性を検証する。`resource-ci` は `LoadManifest` を直接呼び出し、YAML解析・素材の読み込み・課題の検証をライブラリと共有する。
 
-- 課題定義・参照素材が変わった場合は `resource.version` を上げる。SemVerの優先順位で増加させる（build metadataだけの変更は増加にならない）。
-- `resource.yaml` のバイト列と、実際に読み込んだ素材のパス・内容・実行ビットを比較する。コメント変更も更新対象。共有素材を変更すると、それを参照する各課題のversion更新が必要。
-- 未参照ファイルとsandboxのビルド設定・Dockerfileだけの変更には、課題のversion更新は不要。新イメージを課題に適用する際に、その課題のversionを上げる。
-- 公開済みJSONの変更・削除、既存indexエントリの変更・削除、同じversionの別内容への再利用は禁止する。
-
-変更検出にはGoライブラリの `Manifest.SourceHashes` にある課題IDごとのSHA-256を使う。これは生成元の識別用で、課題JSONには含めない。`resource-ci` は `LoadManifest` を直接呼び出し、YAML解析・素材の読み込み・課題の検証をライブラリと共有する。
+同じversionのまま課題定義や素材を変更してもよい。過去のコミットとの比較や、source-hashの照合は行わない。公開済みのversionはスキップするため、変更を公開するには `resource.yaml` の `resource.version` を未公開の値に更新する。初回登録時も、そのversionのJSONを追加する。versionの増加順序は検査しない。
 
 ## mainでの公開順序
 
@@ -81,7 +76,7 @@ release/
 }
 ```
 
-`path` はリポジトリルート基準。versionの列挙順には意味を持たせない。`source-hash` は再実行時の同一性とversion再利用の検査に使う。`source-commit` はCIが生成物を保存したコミットではなく、課題を生成したコミットを指す。
+`path` はリポジトリルート基準。versionの列挙順には意味を持たせない。`source-hash` は生成時の課題定義と参照素材を識別する記録として保持し、照合には使わない。`source-commit` はCIが生成物を保存したコミットではなく、課題を生成したコミットを指す。
 
 公開済みJSONは将来の `latest` 更新に追従しない。manifestから課題を取り除いても過去の公開ファイルは保持する。公開済み課題が参照するイメージ・固定タグもGHCRから削除しない運用とする。初期のindexは空で、初回公開はmainのCIで行う。
 
@@ -91,7 +86,7 @@ workflow全体を同じconcurrency groupに置き、`queue: max` で直列化す
 
 各実行はトリガー元のSHAをチェックアウトする。待機後に最新mainから課題を生成することはしない。保存時には別の一時worktreeに最新mainを取り、生成物だけを追加する。push時にmainが進んでいたら、同じ生成結果を使って最大5回やり直す。force pushはしない。公開順が前後しても、未公開のversionは追加する。
 
-失敗時はActionsでその実行を手動再実行する。公開済みの同一versionは、入力ハッシュが一致することを確認してスキップする。未公開分は再実行時にビルドし、タグを解決し直す。JSONとindexは一括コミットなので、部分的なJSON公開は起きない。
+失敗時はActionsでその実行を手動再実行する。公開済みの同一versionは、ソースの変更有無にかかわらずスキップし、既存のJSONとindexエントリを保持する。未公開分は再実行時にビルドし、タグを解決し直す。JSONとindexは一括コミットなので、部分的なJSON公開は起きない。
 
 生成コミットだけのpushは `paths-ignore: ['release/**']` でResources workflowの対象外にする。通常の `GITHUB_TOKEN` によるpushも後続workflowを起動しない。
 
@@ -109,7 +104,7 @@ GitHub Actions 用の処理は `cmd/resource-ci` と `internal/publishing` に�
 
 ```sh
 go build -o /tmp/resource-ci ./cmd/resource-ci
-/tmp/resource-ci check --root . --base origin/main
+/tmp/resource-ci check --root .
 # 以下はGHCRとmainへ実際に公開する操作。build-imagesの成功後にpublishする。
 /tmp/resource-ci build-images --root .
 /tmp/resource-ci publish --root .
@@ -122,4 +117,4 @@ go vet ./...
 go test ./...
 ```
 
-公開処理のテストも `go test ./...` で実行する。実際のGoライブラリ・一時Gitリポジトリ・ローカルbare remoteを使って、version検査、公開の不変性、再実行、連続するversionの公開、push競合を検証する。Docker・レジストリ操作は状態を持つテスト用のコマンド実行処理で代替するため、GHCRへの書き込みは行わない。
+公開処理のテストも `go test ./...` で実行する。実際のGoライブラリ・一時Gitリポジトリ・ローカルbare remoteを使って、同一versionの変更を許容すること、公開時に既存JSONを保持すること、再実行、連続するversionの公開、push競合を検証する。Docker・レジストリ操作は状態を持つテスト用のコマンド実行処理で代替するため、GHCRへの書き込みは行わない。

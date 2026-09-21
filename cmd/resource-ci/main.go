@@ -23,11 +23,9 @@ func run(args []string) error {
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	root := flags.String("root", ".", "Manifest directory")
-	var base *string
 	var ghaCache *bool
 	switch args[0] {
 	case "check":
-		base = flags.String("base", "", "Base commit to compare")
 	case "build-images":
 		ghaCache = flags.Bool("gha-cache", false, "Use GitHub Actions image cache")
 	case "publish":
@@ -46,10 +44,7 @@ func run(args []string) error {
 	}
 	switch args[0] {
 	case "check":
-		if *base == "" {
-			return fmt.Errorf("check requires --base")
-		}
-		return publishing.Check(directory, *base)
+		return publishing.Check(directory)
 	case "build-images":
 		return publishing.BuildImages(directory, *ghaCache)
 	default:

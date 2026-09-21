@@ -19,7 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@v5
         with:
@@ -29,16 +28,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/resource-bin"
           go build -o "$RUNNER_TEMP/resource-bin/resource-ci" ./cmd/resource-ci
           echo "$RUNNER_TEMP/resource-bin" >> "$GITHUB_PATH"
-      - name: Validate resources and version changes
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PUSH_BASE: ${{ github.event.before }}
-        run: |
-          base="${PR_BASE:-$PUSH_BASE}"
-          if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
-            base="$(git rev-parse HEAD^)"
-          fi
-          resource-ci check --base "$base"
+      - name: Validate resources
+        run: resource-ci check
   publish:
     needs: validate
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

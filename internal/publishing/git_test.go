@@ -1,42 +1,10 @@
 package publishing
 
 import (
-	"archive/tar"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
-
-func TestRevisionPreservesInternalSymlinkAndExecutable(t *testing.T) {
-	f := newFixture(t)
-	must(t, os.Rename(filepath.Join(f.root, "sample/expected.txt"), filepath.Join(f.root, "sample/output.txt")))
-	must(t, os.Symlink("output.txt", filepath.Join(f.root, "sample/expected.txt")))
-	must(t, os.Chmod(filepath.Join(f.root, "sample/output.txt"), 0755))
-	base := f.commit()
-	must(t, f.publisher.check(f.root, base))
-}
-
-func TestRevisionRejectsEscapingArchive(t *testing.T) {
-	for _, header := range []*tar.Header{
-		{Name: "../outside", Typeflag: tar.TypeReg, Mode: 0644},
-		{Name: "link", Typeflag: tar.TypeSymlink, Linkname: "../outside"},
-		{Name: "link", Typeflag: tar.TypeSymlink, Linkname: "/tmp/outside"},
-	} {
-		t.Run(header.Name+header.Linkname, func(t *testing.T) {
-			temp := t.TempDir()
-			archive := filepath.Join(temp, "source.tar")
-			file, err := os.Create(archive)
-			must(t, err)
-			writer := tar.NewWriter(file)
-			must(t, writer.WriteHeader(header))
-			must(t, writer.Close())
-			must(t, file.Close())
-			wantError(t, extractRevision(archive, filepath.Join(temp, "source")), "unsafe archive")
-		})
-	}
-}
 
 func TestPushFailuresAndWorktreeCleanup(t *testing.T) {
 	for _, test := range []struct {

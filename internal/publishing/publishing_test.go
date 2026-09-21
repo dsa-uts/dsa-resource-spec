@@ -181,55 +181,6 @@ sandbox-images:
 `)
 }
 
-func TestSourceChangesRequireVersionBump(t *testing.T) {
-	for _, relative := range []string{"sample/resource.yaml", "sample/description.md", "sample/expected.txt"} {
-		t.Run(relative, func(t *testing.T) {
-			f := newFixture(t)
-			path := filepath.Join(f.root, relative)
-			data, err := os.ReadFile(path)
-			must(t, err)
-			f.write(relative, string(data)+"\n")
-			wantError(t, f.publisher.check(f.root, f.initial), "bump resource.version")
-			f.bump("v1.0.1")
-			must(t, f.publisher.check(f.root, f.initial))
-		})
-	}
-}
-
-func TestSharedMaterialsAndExecutableBits(t *testing.T) {
-	f := newFixture(t)
-	must(t, os.Rename(filepath.Join(f.root, "sample/expected.txt"), filepath.Join(f.root, "expected.txt")))
-	f.replace("sample/resource.yaml", "path: expected.txt", "path: ../expected.txt")
-	base := f.commit()
-	f.write("expected.txt", "shared material changed\n")
-	wantError(t, f.publisher.check(f.root, base), "bump resource.version")
-	base = f.commit()
-	must(t, os.Chmod(filepath.Join(f.root, "expected.txt"), 0755))
-	wantError(t, f.publisher.check(f.root, base), "bump resource.version")
-}
-
-func TestSandboxAndUnusedFilesDoNotRequireBump(t *testing.T) {
-	f := newFixture(t)
-	f.setupBuild()
-	f.write("sample/unused.txt", "unused")
-	must(t, f.publisher.check(f.root, f.initial))
-}
-
-func TestVersionOrdering(t *testing.T) {
-	for _, version := range []string{"v0.9.9", "v1.0.0-rc.1", "v1.0.0+build.2"} {
-		t.Run(version, func(t *testing.T) {
-			f := newFixture(t)
-			f.bump(version)
-			wantError(t, f.publisher.check(f.root, f.initial), "must increase")
-		})
-	}
-	for _, versions := range [][2]string{{"v1.0.0-rc.2", "v1.0.0-rc.10"}, {"v1.0.0-rc.10", "v1.0.0"}} {
-		before := map[string]sourceVersion{"sample": {Version: versions[0]}}
-		after := map[string]sourceVersion{"sample": {Version: versions[1]}}
-		must(t, checkVersions(before, after, releaseIndex{}))
-	}
-}
-
 func TestPublishAndRerun(t *testing.T) {
 	f := newFixture(t)
 	must(t, f.publisher.publish(f.root))
@@ -272,36 +223,50 @@ func TestPinnedImageNeedsNoResolution(t *testing.T) {
 	}
 }
 
-func TestPublishedBytesAndIndexCannotChange(t *testing.T) {
+func TestPublishSkipsChangedSourceUntilVersionChanges(t *testing.T) {
 	f := newFixture(t)
 	must(t, f.publisher.publish(f.root))
 	f.git(f.root, "pull", "--ff-only")
-	base := f.git(f.root, "rev-parse", "HEAD")
-	relative := "release/sample/v1.0.0.json"
-	original, err := os.ReadFile(filepath.Join(f.root, relative))
-	must(t, err)
-	f.write(relative, string(original)+"\n")
-	wantError(t, f.publisher.check(f.root, base), "published JSON changed")
-	must(t, os.Remove(filepath.Join(f.root, relative)))
-	if err := f.publisher.check(f.root, base); err == nil {
-		t.Fatal("allowed deleted release")
-	}
-	f.write(relative, string(original))
-	index, err := readIndex(f.root)
-	must(t, err)
-	entry := index.Resources["sample"]["v1.0.0"]
-	entry.SourceCommit = strings.Repeat("0", 40)
-	index.Resources["sample"]["v1.0.0"] = entry
-	must(t, writeJSON(filepath.Join(f.root, "release/index.json"), index))
-	wantError(t, f.publisher.check(f.root, base), "published index entry changed")
-}
-
-func TestPublishRejectsReusedVersion(t *testing.T) {
-	f := newFixture(t)
-	must(t, f.publisher.publish(f.root))
+	original := f.remoteFile("release/sample/v1.0.0.json")
+	originalIndex := f.remoteFile("release/index.json")
 	f.write("sample/expected.txt", "changed")
+	f.replace("sample/resource.yaml", "resource:", "# edited definition\nresource:")
 	f.commit()
-	wantError(t, f.publisher.publish(f.root), "different source")
+	f.git(f.root, "push", "origin", "main")
+	must(t, Check(f.root))
+	head := f.git(f.remote, "rev-parse", "main")
+	f.registry.failure = "auth"
+	f.registry.calls = nil
+	must(t, f.publisher.publish(f.root))
+	if f.git(f.remote, "rev-parse", "main") != head || len(f.registry.calls) != 0 {
+		t.Fatal("same-version changes caused publication or registry access")
+	}
+	if f.remoteFile("release/index.json") != originalIndex {
+		t.Fatal("changed existing index entry")
+	}
+	f.bump("v1.0.1")
+	sourceCommit := f.commit()
+	f.git(f.root, "push", "origin", "main")
+	f.registry.failure = ""
+	must(t, Check(f.root))
+	must(t, f.publisher.publish(f.root))
+	if f.remoteFile("release/sample/v1.0.0.json") != original {
+		t.Fatal("overwrote previous release")
+	}
+	manifest, err := resource.LoadManifest(f.root)
+	must(t, err)
+	pinned, err := f.publisher.pinImages(manifest.Resources[0], map[string]string{})
+	must(t, err)
+	var published resource.Resource
+	must(t, json.Unmarshal([]byte(f.remoteFile("release/sample/v1.0.1.json")), &published))
+	if !reflect.DeepEqual(published, pinned) {
+		t.Fatal("new release does not match updated source")
+	}
+	var index releaseIndex
+	must(t, json.Unmarshal([]byte(f.remoteFile("release/index.json")), &index))
+	if len(index.Resources["sample"]) != 2 || index.Resources["sample"]["v1.0.1"].SourceCommit != sourceCommit {
+		t.Fatal("new version was not appended with its source commit")
+	}
 }
 
 func TestQueuedSnapshotsBothPublish(t *testing.T) {
