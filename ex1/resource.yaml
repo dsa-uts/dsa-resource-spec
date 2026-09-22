@@ -2,6 +2,12 @@ resource:
   version: "v1.0.0"
   id: ex1
   name: C言語によるプログラミングの復習
+required-files:
+  - gcd_euclid.c
+  - main_euclid.c
+  - Makefile
+  - gcd_recursive.c
+  - main_recursive.c
 workflows:
   ex1-1:
     name: 基本課題

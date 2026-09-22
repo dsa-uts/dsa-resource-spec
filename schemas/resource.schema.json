@@ -25,6 +25,14 @@
       ],
       "additionalProperties": false
     },
+    "required-files": {
+      "type": "array",
+      "description": "Display-only submission guidance for the whole resource; entries are not interpreted as paths or glob patterns.",
+      "items": {
+        "type": "string",
+        "pattern": "\\S"
+      }
+    },
     "workflows": {
       "type": "object",
       "propertyNames": {

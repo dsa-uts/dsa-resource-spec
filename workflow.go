@@ -15,6 +15,11 @@ var identifier = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 var fullVersion = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+].*)?$`)
 
 func validateResource(resource *Resource) error {
+	for i, file := range resource.RequiredFiles {
+		if strings.TrimSpace(file) == "" {
+			return fmt.Errorf("required-files[%d] must not be blank", i)
+		}
+	}
 	if !identifier.MatchString(resource.Metadata.ID) || resource.Metadata.Name == "" || !fullVersion.MatchString(resource.Metadata.Version) || !semver.IsValid(resource.Metadata.Version) {
 		return fmt.Errorf("invalid resource metadata")
 	}

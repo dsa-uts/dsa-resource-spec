@@ -13,8 +13,9 @@ import (
 // Resource contains resolved data and retains neither source paths nor file handles.
 // Marshal it with encoding/json to save or distribute it.
 type Resource struct {
-	Metadata  Metadata            `json:"metadata"`
-	Workflows map[string]Workflow `json:"workflows"`
+	Metadata      Metadata            `json:"metadata"`
+	RequiredFiles []string            `json:"required-files"`
+	Workflows     map[string]Workflow `json:"workflows"`
 }
 
 // Hash returns the SHA-256 of the Resource's current JSON encoding.
@@ -28,6 +29,7 @@ func (r Resource) Hash() (string, error) {
 
 // DecodeResource restores one resolved JSON resource, rejecting unknown fields
 // and invalid runtime data. It does not read files or apply authoring defaults.
+// Missing or null required-files is restored as an empty array.
 func DecodeResource(r io.Reader) (*Resource, error) {
 	decoder := json.NewDecoder(r)
 	decoder.DisallowUnknownFields()
@@ -42,6 +44,9 @@ func DecodeResource(r io.Reader) (*Resource, error) {
 	if err := validateResource(&result); err != nil {
 		return nil, err
 	}
+	if result.RequiredFiles == nil {
+		result.RequiredFiles = []string{}
+	}
 	return &result, nil
 }
 
@@ -54,7 +59,11 @@ func loadResource(root *os.Root, dir string) (*Resource, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resource.yaml: %w", err)
 	}
-	result := &Resource{Metadata: Metadata(input.Resource), Workflows: make(map[string]Workflow)}
+	result := &Resource{
+		Metadata:      Metadata(input.Resource),
+		RequiredFiles: append([]string{}, input.RequiredFiles...),
+		Workflows:     make(map[string]Workflow),
+	}
 	for id, raw := range input.Workflows {
 		workflow, err := resolveWorkflow(root, dir, raw)
 		if err != nil {
