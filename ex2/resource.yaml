@@ -1,0 +1,229 @@
+resource:
+  version: v1.0.0
+  id: ex2
+  name: 連結リスト，スタック，キュー
+workflows:
+  ex2-1:
+    name: (基本課題)連結リストの実装
+    description-path: ex2-1/description.md
+    presets:
+      files:
+      - source: ex2-1/test_linked_list.c
+        path: ex2-1/test_linked_list.c
+    jobs:
+      build:
+        visibility: public
+        sandbox-image: ghcr.io/dsa-uts/dsa-resource-spec-sandbox-default:latest
+        limits:
+          cpu: 1
+          memory: 512MiB
+          pids: 128
+          step-timeout: 1s
+          stdout-size: 1MiB
+          stderr-size: 1MiB
+          workspace-size: 256MiB
+          artifact-size: 1MiB
+        artifacts:
+          outputs:
+          - name: program
+            path: linked_list
+          - name: test-program
+            path: test_linked_list
+        steps:
+        - name: Makefileのターゲットlinked_listのコンパイル
+          compile: true
+          run: make linked_list
+          expected:
+            exit-code: 0
+        - name: test_linked_list.cのコンパイル
+          compile: true
+          run: gcc -I. -o test_linked_list /preset/ex2-1/test_linked_list.c linked_list.o
+          expected:
+            exit-code: 0
+      public:
+        visibility: public
+        depends:
+        - build
+        sandbox-image: ghcr.io/dsa-uts/dsa-resource-spec-sandbox-runner:latest
+        limits:
+          cpu: 1
+          memory: 512MiB
+          pids: 128
+          step-timeout: 1s
+          stdout-size: 1MiB
+          stderr-size: 1MiB
+          workspace-size: 256MiB
+          artifact-size: 1MiB
+        artifacts:
+          inputs:
+          - from-job: build
+            name: program
+            path: linked_list
+          - from-job: build
+            name: test-program
+            path: test_linked_list
+        steps:
+        - name: linked_listの実行
+          run: ./linked_list
+        - name: 先頭にセルを挿入する
+          run: ./test_linked_list
+          stdin:
+            path: ex2-1/testcases/insert_top.in
+          expected:
+            exit-code: 0
+            stdout:
+              match: easy
+              path: ex2-1/testcases/insert_top.out
+  ex2-2:
+    name: (基本課題)キューの実装
+    description-path: ex2-2/description.md
+    presets:
+      files:
+      - source: ex2-2/test_queue.c
+        path: ex2-2/test_queue.c
+    jobs:
+      build:
+        visibility: public
+        sandbox-image: ghcr.io/dsa-uts/dsa-resource-spec-sandbox-default:latest
+        limits:
+          cpu: 1
+          memory: 512MiB
+          pids: 128
+          step-timeout: 1s
+          stdout-size: 1MiB
+          stderr-size: 1MiB
+          workspace-size: 256MiB
+          artifact-size: 1MiB
+        artifacts:
+          outputs:
+          - name: program
+            path: queue
+          - name: test-program
+            path: test_queue
+        steps:
+        - name: Makefileのターゲットqueueのコンパイル
+          compile: true
+          run: make queue
+          expected:
+            exit-code: 0
+        - name: test_queue.cのコンパイル
+          compile: true
+          run: gcc -I. -o test_queue /preset/ex2-2/test_queue.c queue.o
+          expected:
+            exit-code: 0
+      public:
+        visibility: public
+        depends:
+        - build
+        sandbox-image: ghcr.io/dsa-uts/dsa-resource-spec-sandbox-runner:latest
+        limits:
+          cpu: 1
+          memory: 512MiB
+          pids: 128
+          step-timeout: 1s
+          stdout-size: 1MiB
+          stderr-size: 1MiB
+          workspace-size: 256MiB
+          artifact-size: 1MiB
+        artifacts:
+          inputs:
+          - from-job: build
+            name: program
+            path: queue
+          - from-job: build
+            name: test-program
+            path: test_queue
+        steps:
+        - name: queueの実行
+          run: ./queue
+        - name: キューに整数を1つ格納し、それが取り出せる
+          run: ./test_queue
+          stdin:
+            path: ex2-2/testcases/enq1.in
+          expected:
+            exit-code: 0
+            stdout:
+              match: easy
+              path: ex2-2/testcases/enq1.out
+  ex2-3:
+    name: (発展課題)双方向循環リストの実装
+    description-path: ex2-3/description.md
+    presets:
+      files:
+      - source: ex2-3/test_doublylinked_list.c
+        path: ex2-3/test_doublylinked_list.c
+      - source: ex2-3/test_util.c
+        path: ex2-3/test_util.c
+      - source: ex2-3/array.txt
+        path: ex2-3/array.txt
+    jobs:
+      build:
+        visibility: public
+        sandbox-image: ghcr.io/dsa-uts/dsa-resource-spec-sandbox-default:latest
+        limits:
+          cpu: 1
+          memory: 512MiB
+          pids: 128
+          step-timeout: 1s
+          stdout-size: 1MiB
+          stderr-size: 1MiB
+          workspace-size: 256MiB
+          artifact-size: 1MiB
+        artifacts:
+          outputs:
+          - name: program
+            path: doublylinked_list
+          - name: test-program
+            path: test_doublylinked_list
+          - name: test-util
+            path: test_util
+        steps:
+        - name: Makefileのターゲットdoublylinked_listのコンパイル
+          compile: true
+          run: make doublylinked_list
+          expected:
+            exit-code: 0
+        - name: test_doublylinked_list.cのコンパイル
+          compile: true
+          run: gcc -I. -o test_doublylinked_list /preset/ex2-3/test_doublylinked_list.c doublylinked_list.o
+          expected:
+            exit-code: 0
+        - name: test_util.cのコンパイル
+          compile: true
+          run: gcc -I. -o test_util /preset/ex2-3/test_util.c doublylinked_list.o
+          expected:
+            exit-code: 0
+      public:
+        visibility: public
+        depends:
+        - build
+        sandbox-image: ghcr.io/dsa-uts/dsa-resource-spec-sandbox-runner:latest
+        limits:
+          cpu: 1
+          memory: 512MiB
+          pids: 128
+          step-timeout: 1s
+          stdout-size: 1MiB
+          stderr-size: 1MiB
+          workspace-size: 256MiB
+          artifact-size: 1MiB
+        artifacts:
+          inputs:
+          - from-job: build
+            name: program
+            path: doublylinked_list
+          - from-job: build
+            name: test-program
+            path: test_doublylinked_list
+        steps:
+        - name: doublylinked_listの実行
+          run: ./doublylinked_list
+        - name: InsertNext()関数により、セルをリストの先頭、末尾、中間に挿入できる
+          run: ./test_doublylinked_list
+          stdin:
+            path: ex2-3/testcases/insert_next.in
+          expected:
+            exit-code: 0
+            stdout:
+              match: easy
+              path: ex2-3/testcases/insert_next.out

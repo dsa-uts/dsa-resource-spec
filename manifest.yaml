@@ -1,6 +1,8 @@
 resources:
   - id: ex1
     path: ex1
+  - id: ex2
+    path: ex2
 sandbox-images:
   default:
     context: sandbox
