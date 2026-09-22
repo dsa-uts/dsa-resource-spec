@@ -1,0 +1,12 @@
+11
+insert next 1 1
+display
+insert next 2 3
+display
+insert next 2 2
+display
+insert next 4 5
+display
+insert next 4 4
+display
+display-reverse
