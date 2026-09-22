@@ -9,8 +9,9 @@ import (
 )
 
 type definition struct {
-	Resource  rawMetadata            `yaml:"resource"`
-	Workflows map[string]rawWorkflow `yaml:"workflows"`
+	Resource      rawMetadata            `yaml:"resource"`
+	RequiredFiles []string               `yaml:"required-files"`
+	Workflows     map[string]rawWorkflow `yaml:"workflows"`
 }
 
 //go:embed schemas/resource.schema.json

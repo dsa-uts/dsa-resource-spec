@@ -2,6 +2,17 @@ resource:
   version: v1.0.0
   id: ex2
   name: 連結リスト，スタック，キュー
+required-files:
+  - linked_list.h
+  - linked_list.c
+  - main_linked_list.c
+  - Makefile
+  - queue.h
+  - queue.c
+  - main_queue.c
+  - doublylinked_list.h
+  - doublylinked_list.c
+  - main_doublylinked_list.c
 workflows:
   ex2-1:
     name: (基本課題)連結リストの実装

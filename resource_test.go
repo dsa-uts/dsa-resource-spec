@@ -17,23 +17,26 @@ func TestDecodeRejections(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, mutate := range map[string]func(map[string]any){
-		"old definition":       func(v map[string]any) { v["definition"] = map[string]any{} },
-		"unknown source":       func(v map[string]any) { jsonWorkflow(v)["source"] = "secret" },
-		"empty workflows":      func(v map[string]any) { v["workflows"] = nil },
-		"invalid version":      func(v map[string]any) { v["metadata"].(map[string]any)["version"] = "v1" },
-		"dependency":           func(v map[string]any) { jsonJob(v)["depends"] = []any{"missing"} },
-		"duplicate dependency": func(v map[string]any) { jsonJob(v)["depends"] = []any{"build", "build"} },
-		"visibility":           func(v map[string]any) { jsonJob(v)["visibility"] = "secret" },
-		"timeout":              func(v map[string]any) { jsonStep(v)["timeout"] = 0 },
-		"negative timeout":     func(v map[string]any) { jsonStep(v)["timeout"] = -1 },
-		"timeout overflow":     func(v map[string]any) { jsonStep(v)["timeout"] = 1e30 },
-		"memory":               func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["memory"] = -1 },
-		"missing limits":       func(v map[string]any) { delete(jsonJob(v), "limits") },
-		"zero CPU":             func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = 0 },
-		"negative CPU":         func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = -1 },
-		"fractional CPU":       func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = 1.5 },
-		"exit code":            func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = 256 },
-		"negative exit code":   func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = -1 },
+		"empty required file":      func(v map[string]any) { v["required-files"] = []string{""} },
+		"blank required file":      func(v map[string]any) { v["required-files"] = []string{" \t\n\u3000"} },
+		"non-string required file": func(v map[string]any) { v["required-files"] = []any{1} },
+		"old definition":           func(v map[string]any) { v["definition"] = map[string]any{} },
+		"unknown source":           func(v map[string]any) { jsonWorkflow(v)["source"] = "secret" },
+		"empty workflows":          func(v map[string]any) { v["workflows"] = nil },
+		"invalid version":          func(v map[string]any) { v["metadata"].(map[string]any)["version"] = "v1" },
+		"dependency":               func(v map[string]any) { jsonJob(v)["depends"] = []any{"missing"} },
+		"duplicate dependency":     func(v map[string]any) { jsonJob(v)["depends"] = []any{"build", "build"} },
+		"visibility":               func(v map[string]any) { jsonJob(v)["visibility"] = "secret" },
+		"timeout":                  func(v map[string]any) { jsonStep(v)["timeout"] = 0 },
+		"negative timeout":         func(v map[string]any) { jsonStep(v)["timeout"] = -1 },
+		"timeout overflow":         func(v map[string]any) { jsonStep(v)["timeout"] = 1e30 },
+		"memory":                   func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["memory"] = -1 },
+		"missing limits":           func(v map[string]any) { delete(jsonJob(v), "limits") },
+		"zero CPU":                 func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = 0 },
+		"negative CPU":             func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = -1 },
+		"fractional CPU":           func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = 1.5 },
+		"exit code":                func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = 256 },
+		"negative exit code":       func(v map[string]any) { jsonStep(v)["expected"].(map[string]any)["exit-code"] = -1 },
 		"match": func(v map[string]any) {
 			jsonStep(v)["expected"].(map[string]any)["stdout"].(map[string]any)["match"] = "unknown"
 		},
@@ -58,6 +61,66 @@ func TestDecodeRejections(t *testing.T) {
 		if _, err := resource.DecodeResource(strings.NewReader(data)); err == nil {
 			t.Fatal("invalid document accepted")
 		}
+	}
+}
+
+func TestRequiredFiles(t *testing.T) {
+	for _, tc := range []struct {
+		name, field, want string
+		invalid           bool
+	}{
+		{"omitted", "", `[]`, false},
+		{"empty", "required-files: []\n", `[]`, false},
+		{"display text", "required-files: [main.c, '*.c', ' レポート.pdf（任意） ', main.c]\n", `["main.c","*.c"," レポート.pdf（任意） ","main.c"]`, false},
+		{"empty string", "required-files: ['']\n", "", true},
+		{"blank string", "required-files: ['   ']\n", "", true},
+		{"unicode blank", "required-files: ['\u3000']\n", "", true},
+		{"number", "required-files: [123]\n", "", true},
+		{"scalar", "required-files: main.c\n", "", true},
+		{"null", "required-files: null\n", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.CopyFS(dir, os.DirFS("testdata/cli/valid/basic/input")); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "sample/resource.yaml")
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, append([]byte(tc.field), data...), 0644); err != nil {
+				t.Fatal(err)
+			}
+			manifest, err := resource.LoadManifest(dir)
+			if tc.invalid {
+				if err == nil {
+					t.Fatal("invalid required-files accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err = json.Marshal(manifest.Resources[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(data, &fields); err != nil {
+				t.Fatal(err)
+			}
+			if got := string(fields["required-files"]); got != tc.want {
+				t.Fatalf("required-files = %s, want %s", got, tc.want)
+			}
+			decoded, err := resource.DecodeResource(bytes.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(decoded.RequiredFiles, manifest.Resources[0].RequiredFiles) {
+				t.Fatal("required-files changed during JSON round trip")
+			}
+		})
 	}
 }
 
@@ -107,6 +170,18 @@ func TestDecodeRoundTrip(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, want) {
 				t.Fatalf("JSON round trip changed %s", path)
+			}
+			for _, legacy := range []string{
+				strings.Replace(string(data), `"required-files": [],`, "", 1),
+				strings.Replace(string(data), `"required-files": []`, `"required-files": null`, 1),
+			} {
+				restored, err := resource.DecodeResource(strings.NewReader(legacy))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if restored.RequiredFiles == nil || len(restored.RequiredFiles) != 0 {
+					t.Fatal("missing/null required-files was not restored as an empty array")
+				}
 			}
 		})
 	}

@@ -4,6 +4,7 @@
     "name": "Test resource",
     "version": "v1.0.0"
   },
+  "required-files": [],
   "workflows": {
     "main": {
       "name": "",
