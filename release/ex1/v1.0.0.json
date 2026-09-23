@@ -1,0 +1,436 @@
+{
+  "metadata": {
+    "id": "ex1",
+    "name": "C言語によるプログラミングの復習",
+    "version": "v1.0.0"
+  },
+  "required-files": [
+    "gcd_euclid.c",
+    "main_euclid.c",
+    "Makefile",
+    "gcd_recursive.c",
+    "main_recursive.c"
+  ],
+  "workflows": {
+    "ex1-1": {
+      "name": "基本課題",
+      "description": "# 基本課題\n[課題リンク](https://www.coins.tsukuba.ac.jp/~amagasa/lecture/dsa-jikken/report1/#_4)\n\n教科書リスト1-4（p. 7）の「ユークリッドの互除法」に基づいたプログラム`gcd_euclid.c`および`main_euclid.c`を作成しなさい。\n\n## ファイル gcd_euclid.c\n```c\n#include \u003cstdio.h\u003e\n#include \u003cstdlib.h\u003e\n\n// Find the greatest common divisor of the two integers, n and m.\nint gcd_euclid(int n, int m) {\n\n    // 関数を完成させよ\n\n    return n;\n}\n```\n\n## ファイル main_euclid.c\n```c\n#include \u003cstdio.h\u003e\n#include \u003cstdlib.h\u003e\n\n// Find the greatest common divisor of the two integers, n and m.\nint gcd_euclid(int, int);\n\nint main(int argc, char *argv[]) {\n  // Process arguments.\n  if (argc != 3) {\n    fprintf(stderr, \"Usage: %s \u003cnumber1\u003e \u003cnumber2\u003e\\n\", argv[0]);\n    return EXIT_FAILURE;\n  }\n  int n = atoi(argv[1]);\n  int m = atoi(argv[2]);\n\n  // Compute and output the greatest common divisor.\n  int gcd = gcd_euclid(n, m);\n  printf(\"The GCD of %d and %d is %d.\\n\", n, m, gcd);\n\n  return EXIT_SUCCESS;\n}\n```\n\n# 提出方法\n基本課題・発展課題をまとめて、次の5ファイルを提出ルート直下に配置して提出せよ。小問ごとのフォルダには分けない。1つの提出に両方の課題を実行する。\n\n- `gcd_euclid.c`\n- `main_euclid.c`\n- `gcd_recursive.c`\n- `main_recursive.c`\n- 共通の `Makefile`\n\n共通Makefileには両方のターゲットを定義する。\n\n```make\n.PHONY: all\nall: gcd_euclid gcd_recursive\n\ngcd_euclid: gcd_euclid.o main_euclid.o\n\t$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)\n\ngcd_recursive: gcd_recursive.o main_recursive.o\n\t$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)\n```\n",
+      "presets": [
+        {
+          "content": "I2luY2x1ZGUgPHN0ZGlvLmg+CiNpbmNsdWRlIDxzdGRsaWIuaD4KaW50IGdjZF9ldWNsaWQoaW50LCBpbnQpOwoKaW50IG1haW4oaW50IGFyZ2MsIGNoYXIgKmFyZ3ZbXSkKewogICAgLy8gUHJvY2VzcyBhcmd1bWVudHMuCiAgICBpZiAoYXJnYyAhPSAzKQogICAgewogICAgICAgIGZwcmludGYoc3RkZXJyLCAiVXNhZ2U6ICVzIDxudW1iZXIxPiA8bnVtYmVyMj5cbiIsIGFyZ3ZbMF0pOwogICAgICAgIHJldHVybiBFWElUX0ZBSUxVUkU7CiAgICB9CiAgICBpbnQgbiA9IGF0b2koYXJndlsxXSk7CiAgICBpbnQgbSA9IGF0b2koYXJndlsyXSk7CgogICAgaWYgKG4gPD0gMCB8fCBtIDw9IDApCiAgICB7CiAgICAgICAgZnByaW50ZihzdGRlcnIsICJUd28gbnVtYmVyIG11c3QgYmUgZ3JlYXRlciB0aGFuIDAuXG4iKTsKICAgICAgICByZXR1cm4gRVhJVF9GQUlMVVJFOwogICAgfQoKICAgIC8vIEZpbmQgdGhlIGdyZWF0ZXN0IGNvbW1vbiBkaXZpc29yLgogICAgaW50IGdjZCA9IGdjZF9ldWNsaWQobiwgbSk7CiAgICBwcmludGYoIlRoZSBHQ0Qgb2YgJWQgYW5kICVkIGlzICVkLlxuIiwgbiwgbSwgZ2NkKTsKCiAgICByZXR1cm4gRVhJVF9TVUNDRVNTOwp9Cg==",
+          "executable": false,
+          "path": "ex1-1/test_link.c"
+        }
+      ],
+      "jobs": {
+        "build": {
+          "name": "",
+          "visibility": "public",
+          "depends": null,
+          "sandbox-image": "ghcr.io/dsa-uts/dsa-resource-spec-sandbox-default@sha256:cb37b84437988eb016a140498d209fc3beb1bdbfc76e30d06b1276276ed3ce5e",
+          "limits": {
+            "cpu": 1,
+            "memory": 536870912,
+            "pids": 128,
+            "stdout-size": 1048576,
+            "stderr-size": 1048576,
+            "workspace-size": 268435456,
+            "artifact-size": 1048576
+          },
+          "artifacts": {
+            "inputs": null,
+            "outputs": [
+              {
+                "name": "program",
+                "path": "gcd_euclid",
+                "visibility": "private",
+                "content-type": ""
+              }
+            ]
+          },
+          "steps": [
+            {
+              "name": "main_euclid.cのコンパイル",
+              "compile": true,
+              "run": "make gcd_euclid",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": null,
+                "stderr": null
+              }
+            },
+            {
+              "name": "gcd_euclidが定義されているか",
+              "compile": true,
+              "run": "gcc -o test_link gcd_euclid.c /preset/ex1-1/test_link.c",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": null,
+                "stderr": null
+              }
+            }
+          ]
+        },
+        "private": {
+          "name": "",
+          "visibility": "private",
+          "depends": [
+            "build"
+          ],
+          "sandbox-image": "ghcr.io/dsa-uts/dsa-resource-spec-sandbox-runner@sha256:634695047461ae6e00e0ad0b472894192931c2e4ce269fadc5d393e23879d4ee",
+          "limits": {
+            "cpu": 1,
+            "memory": 536870912,
+            "pids": 128,
+            "stdout-size": 1048576,
+            "stderr-size": 1048576,
+            "workspace-size": 268435456,
+            "artifact-size": 1048576
+          },
+          "artifacts": {
+            "inputs": [
+              {
+                "from-job": "build",
+                "name": "program",
+                "path": "gcd_euclid"
+              }
+            ],
+            "outputs": null
+          },
+          "steps": [
+            {
+              "name": "18, 24のGCD",
+              "compile": false,
+              "run": "./gcd_euclid 18 24",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": {
+                  "content": "VGhlIEdDRCBvZiAxOCBhbmQgMjQgaXMgNi4K",
+                  "match": "easy"
+                },
+                "stderr": {
+                  "content": "",
+                  "match": "easy"
+                }
+              }
+            },
+            {
+              "name": "649, 826のGCD",
+              "compile": false,
+              "run": "./gcd_euclid 649 826",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": {
+                  "content": "VGhlIEdDRCBvZiA2NDkgYW5kIDgyNiBpcyA1OS4K",
+                  "match": "easy"
+                },
+                "stderr": {
+                  "content": "",
+                  "match": "easy"
+                }
+              }
+            },
+            {
+              "name": "55, 165のGCD",
+              "compile": false,
+              "run": "./gcd_euclid 55 165",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": {
+                  "content": "VGhlIEdDRCBvZiA1NSBhbmQgMTY1IGlzIDU1Lgo=",
+                  "match": "easy"
+                },
+                "stderr": {
+                  "content": "",
+                  "match": "easy"
+                }
+              }
+            }
+          ]
+        },
+        "public": {
+          "name": "",
+          "visibility": "public",
+          "depends": [
+            "build"
+          ],
+          "sandbox-image": "ghcr.io/dsa-uts/dsa-resource-spec-sandbox-runner@sha256:634695047461ae6e00e0ad0b472894192931c2e4ce269fadc5d393e23879d4ee",
+          "limits": {
+            "cpu": 1,
+            "memory": 536870912,
+            "pids": 128,
+            "stdout-size": 1048576,
+            "stderr-size": 1048576,
+            "workspace-size": 268435456,
+            "artifact-size": 1048576
+          },
+          "artifacts": {
+            "inputs": [
+              {
+                "from-job": "build",
+                "name": "program",
+                "path": "gcd_euclid"
+              }
+            ],
+            "outputs": null
+          },
+          "steps": [
+            {
+              "name": "15, 30のGCD",
+              "compile": false,
+              "run": "./gcd_euclid 15 30",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": {
+                  "content": "VGhlIEdDRCBvZiAxNSBhbmQgMzAgaXMgMTUuCg==",
+                  "match": "easy"
+                },
+                "stderr": {
+                  "content": "",
+                  "match": "easy"
+                }
+              }
+            },
+            {
+              "name": "引数が2つでない場合のエラー出力",
+              "compile": false,
+              "run": "./gcd_euclid 127 41 231",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 1,
+                "stdout": {
+                  "content": "",
+                  "match": "easy"
+                },
+                "stderr": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ex1-2": {
+      "name": "発展課題",
+      "description": "# 発展課題\n[課題リンク](https://www.coins.tsukuba.ac.jp/~amagasa/lecture/dsa-jikken/report1/#_5)\n\n`gcd_euclid` を，再帰的アルゴリズム（教科書p. 14）に基づいて書き換えた `gcd_recursive.c` および `main_recursive.c` を作成しなさい．関数名は `gcd_recursive` とする．\n\n## ファイル gcd_recursive.c\n```c\n#include \u003cstdio.h\u003e\n#include \u003cstdlib.h\u003e\n\n// Find the greatest common divisor of the two integers, n and m.\nint gcd_recursive(int n, int m) {\n\n    // 関数を完成させよ\n\n    return n;\n}\n```\n\n## ファイル main_recursive.c\n```c\n#include \u003cstdio.h\u003e\n#include \u003cstdlib.h\u003e\n\n// Find the greatest common divisor of the two integers, n and m.\nint gcd_recursive(int, int);\n\nint main(int argc, char *argv[]) {\n  // Process arguments.\n  if (argc != 3) {\n    fprintf(stderr, \"Usage: %s \u003cnumber1\u003e \u003cnumber2\u003e\\n\", argv[0]);\n    return EXIT_FAILURE;\n  }\n  int n = atoi(argv[1]);\n  int m = atoi(argv[2]);\n\n  // Compute and output the greatest common divisor.\n  int gcd = gcd_recursive(n, m);\n  printf(\"The GCD of %d and %d is %d.\\n\", n, m, gcd);\n\n  return EXIT_SUCCESS;\n}\n```\n\n\n# 提出方法\n基本課題・発展課題をまとめて、次の5ファイルを提出ルート直下に配置して提出せよ。小問ごとのフォルダには分けない。1つの提出に両方の課題を実行する。\n\n- `gcd_euclid.c`\n- `main_euclid.c`\n- `gcd_recursive.c`\n- `main_recursive.c`\n- 共通の `Makefile`\n\n共通Makefileには両方のターゲットを定義する。\n\n```make\n.PHONY: all\nall: gcd_euclid gcd_recursive\n\ngcd_euclid: gcd_euclid.o main_euclid.o\n\t$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)\n\ngcd_recursive: gcd_recursive.o main_recursive.o\n\t$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)\n```\n",
+      "presets": [
+        {
+          "content": "I2luY2x1ZGUgPHN0ZGlvLmg+CiNpbmNsdWRlIDxzdGRsaWIuaD4KaW50IGdjZF9yZWN1cnNpdmUoaW50LCBpbnQpOwoKaW50IG1haW4oaW50IGFyZ2MsIGNoYXIgKmFyZ3ZbXSkKewogICAgLy8gUHJvY2VzcyBhcmd1bWVudHMuCiAgICBpZiAoYXJnYyAhPSAzKQogICAgewogICAgICAgIGZwcmludGYoc3RkZXJyLCAiVXNhZ2U6ICVzIDxudW1iZXIxPiA8bnVtYmVyMj5cbiIsIGFyZ3ZbMF0pOwogICAgICAgIHJldHVybiBFWElUX0ZBSUxVUkU7CiAgICB9CiAgICBpbnQgbiA9IGF0b2koYXJndlsxXSk7CiAgICBpbnQgbSA9IGF0b2koYXJndlsyXSk7CgogICAgaWYgKG4gPD0gMCB8fCBtIDw9IDApCiAgICB7CiAgICAgICAgZnByaW50ZihzdGRlcnIsICJUd28gbnVtYmVyIG11c3QgYmUgZ3JlYXRlciB0aGFuIDAuXG4iKTsKICAgICAgICByZXR1cm4gRVhJVF9GQUlMVVJFOwogICAgfQoKICAgIC8vIEZpbmQgdGhlIGdyZWF0ZXN0IGNvbW1vbiBkaXZpc29yLgogICAgaW50IGdjZCA9IGdjZF9yZWN1cnNpdmUobiwgbSk7CiAgICBwcmludGYoIlRoZSBHQ0Qgb2YgJWQgYW5kICVkIGlzICVkLlxuIiwgbiwgbSwgZ2NkKTsKCiAgICByZXR1cm4gRVhJVF9TVUNDRVNTOwp9Cg==",
+          "executable": false,
+          "path": "ex1-2/test_link.c"
+        }
+      ],
+      "jobs": {
+        "build": {
+          "name": "",
+          "visibility": "public",
+          "depends": null,
+          "sandbox-image": "ghcr.io/dsa-uts/dsa-resource-spec-sandbox-default@sha256:cb37b84437988eb016a140498d209fc3beb1bdbfc76e30d06b1276276ed3ce5e",
+          "limits": {
+            "cpu": 1,
+            "memory": 536870912,
+            "pids": 128,
+            "stdout-size": 1048576,
+            "stderr-size": 1048576,
+            "workspace-size": 268435456,
+            "artifact-size": 1048576
+          },
+          "artifacts": {
+            "inputs": null,
+            "outputs": [
+              {
+                "name": "program",
+                "path": "gcd_recursive",
+                "visibility": "private",
+                "content-type": ""
+              }
+            ]
+          },
+          "steps": [
+            {
+              "name": "main_recursive.cのコンパイル",
+              "compile": true,
+              "run": "make gcd_recursive",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": null,
+                "stderr": null
+              }
+            },
+            {
+              "name": "gcd_recursiveが定義されているか",
+              "compile": true,
+              "run": "gcc -o test_link gcd_recursive.c /preset/ex1-2/test_link.c",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": null,
+                "stderr": null
+              }
+            }
+          ]
+        },
+        "private": {
+          "name": "",
+          "visibility": "private",
+          "depends": [
+            "build"
+          ],
+          "sandbox-image": "ghcr.io/dsa-uts/dsa-resource-spec-sandbox-runner@sha256:634695047461ae6e00e0ad0b472894192931c2e4ce269fadc5d393e23879d4ee",
+          "limits": {
+            "cpu": 1,
+            "memory": 536870912,
+            "pids": 128,
+            "stdout-size": 1048576,
+            "stderr-size": 1048576,
+            "workspace-size": 268435456,
+            "artifact-size": 1048576
+          },
+          "artifacts": {
+            "inputs": [
+              {
+                "from-job": "build",
+                "name": "program",
+                "path": "gcd_recursive"
+              }
+            ],
+            "outputs": null
+          },
+          "steps": [
+            {
+              "name": "18, 24のGCD",
+              "compile": false,
+              "run": "./gcd_recursive 18 24",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": {
+                  "content": "VGhlIEdDRCBvZiAxOCBhbmQgMjQgaXMgNi4K",
+                  "match": "easy"
+                },
+                "stderr": {
+                  "content": "",
+                  "match": "easy"
+                }
+              }
+            },
+            {
+              "name": "649, 826のGCD",
+              "compile": false,
+              "run": "./gcd_recursive 649 826",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": {
+                  "content": "VGhlIEdDRCBvZiA2NDkgYW5kIDgyNiBpcyA1OS4K",
+                  "match": "easy"
+                },
+                "stderr": {
+                  "content": "",
+                  "match": "easy"
+                }
+              }
+            },
+            {
+              "name": "55, 165のGCD",
+              "compile": false,
+              "run": "./gcd_recursive 55 165",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": {
+                  "content": "VGhlIEdDRCBvZiA1NSBhbmQgMTY1IGlzIDU1Lgo=",
+                  "match": "easy"
+                },
+                "stderr": {
+                  "content": "",
+                  "match": "easy"
+                }
+              }
+            }
+          ]
+        },
+        "public": {
+          "name": "",
+          "visibility": "public",
+          "depends": [
+            "build"
+          ],
+          "sandbox-image": "ghcr.io/dsa-uts/dsa-resource-spec-sandbox-runner@sha256:634695047461ae6e00e0ad0b472894192931c2e4ce269fadc5d393e23879d4ee",
+          "limits": {
+            "cpu": 1,
+            "memory": 536870912,
+            "pids": 128,
+            "stdout-size": 1048576,
+            "stderr-size": 1048576,
+            "workspace-size": 268435456,
+            "artifact-size": 1048576
+          },
+          "artifacts": {
+            "inputs": [
+              {
+                "from-job": "build",
+                "name": "program",
+                "path": "gcd_recursive"
+              }
+            ],
+            "outputs": null
+          },
+          "steps": [
+            {
+              "name": "15, 30のGCD",
+              "compile": false,
+              "run": "./gcd_recursive 15 30",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 0,
+                "stdout": {
+                  "content": "VGhlIEdDRCBvZiAxNSBhbmQgMzAgaXMgMTUuCg==",
+                  "match": "easy"
+                },
+                "stderr": {
+                  "content": "",
+                  "match": "easy"
+                }
+              }
+            },
+            {
+              "name": "引数が2つでない場合のエラー出力",
+              "compile": false,
+              "run": "./gcd_recursive 127 41 231",
+              "stdin": null,
+              "timeout": 1000000000,
+              "expected": {
+                "exit-code": 1,
+                "stdout": {
+                  "content": "",
+                  "match": "easy"
+                },
+                "stderr": null
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
