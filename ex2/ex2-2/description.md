@@ -59,14 +59,12 @@ int main(void) {
 ```
 
 このソースコードでは、キューの容量$n$とクエリの数$q$、そして、各クエリの内容$op_i$を以下の形式で受け取る。
-<div style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; color: black;">
 
-$n$ $q$ <br>
-$op_1$ <br>
-$op_2$ <br>
-$\dots$ <br>
-$op_q$
-</div>
+> $n$ $q$\
+> $op_1$\
+> $op_2$\
+> $\dots$\
+> $op_q$
 
 $op_i$は以下のいずれかである。
 * $enq\,\,\,\,x$ : キューに整数$x$を格納する

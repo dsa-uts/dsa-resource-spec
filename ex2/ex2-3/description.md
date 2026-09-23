@@ -123,14 +123,12 @@ int main(void) {
 
 ```
 このソースコードでは、クエリの数$Q$、クエリの内容$op_i$を以下の形式で受け取る。
-<div style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; color: black;">
 
-$q$ <br>
-$op_1$ <br>
-$op_2$ <br>
-$\dots$ <br>
-$op_Q$
-</div>
+> $q$\
+> $op_1$\
+> $op_2$\
+> $\dots$\
+> $op_Q$
 
 $op_i$は以下のいずれかである。
 * `insert prev` $pos$ $val$ : ダミーセルの後ろから$pos$番目の位置に値$val$のセルを挿入する。もともと$pos$番目の位置にあったセルは、新しいセルの後ろにくる。
