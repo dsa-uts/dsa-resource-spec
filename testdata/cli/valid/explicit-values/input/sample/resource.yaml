@@ -10,8 +10,8 @@ workflows:
         limits:
           memory: 1GiB
           cpu: 8
-          stdout-size: 20MiB
-          stderr-size: 21MiB
+          stdout-size: 127KiB
+          stderr-size: 128KiB
           workspace-size: 2GiB
           artifact-size: 2KiB
           pids: 256
@@ -29,8 +29,8 @@ workflows:
         limits:
           memory: 1GiB
           cpu: 8
-          stdout-size: 20MiB
-          stderr-size: 21MiB
+          stdout-size: 127KiB
+          stderr-size: 128KiB
           workspace-size: 2GiB
           artifact-size: 2KiB
           pids: 256
@@ -60,8 +60,8 @@ workflows:
         limits:
           memory: 1GiB
           cpu: 8
-          stdout-size: 20MiB
-          stderr-size: 21MiB
+          stdout-size: 127KiB
+          stderr-size: 128KiB
           workspace-size: 2GiB
           artifact-size: 2KiB
           pids: 256

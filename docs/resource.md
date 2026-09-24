@@ -184,8 +184,8 @@ limits:
   memory: 512MiB
   pids: 128
   step-timeout: "10s"
-  stdout-size: 1MiB
-  stderr-size: 1MiB
+  stdout-size: 4KiB
+  stderr-size: 4KiB
   workspace-size: 256MiB
   artifact-size: 1MiB
 ```
@@ -196,8 +196,8 @@ limits:
 | `memory` | 任意 | ジョブのメモリ上限。例: `512MiB`。省略時 `128MiB`。 |
 | `pids` | 任意 | 最大プロセス数。1 以上の整数。省略時 `128`。 |
 | `step-timeout` | 必須 | ステップのタイムアウトの既定値。例: `"2s"`、`"300ms"`。 |
-| `stdout-size` | 任意 | 標準出力の取得サイズの上限。省略時 `10MiB`。 |
-| `stderr-size` | 任意 | 標準エラー出力の取得サイズの上限。省略時 `10MiB`。 |
+| `stdout-size` | 任意 | 標準出力の取得サイズの上限。最大 `128KiB`。省略時 `4KiB`。 |
+| `stderr-size` | 任意 | 標準エラー出力の取得サイズの上限。最大 `128KiB`。省略時 `4KiB`。 |
 | `workspace-size` | 任意 | 作業領域の容量上限。省略時 `128MiB`。 |
 | `artifact-size` | 任意 | 成果物ファイル 1 個あたりの保存上限。省略時 `1MiB`。 |
 

@@ -20,8 +20,8 @@
             "cpu": 1,
             "memory": 67108864,
             "pids": 128,
-            "stdout-size": 10485760,
-            "stderr-size": 10485760,
+            "stdout-size": 4096,
+            "stderr-size": 4096,
             "workspace-size": 134217728,
             "artifact-size": 1048576
           },
@@ -62,8 +62,8 @@
             "cpu": 1,
             "memory": 67108864,
             "pids": 128,
-            "stdout-size": 10485760,
-            "stderr-size": 10485760,
+            "stdout-size": 4096,
+            "stderr-size": 4096,
             "workspace-size": 134217728,
             "artifact-size": 1048576
           },
@@ -103,8 +103,8 @@
             "cpu": 1,
             "memory": 67108864,
             "pids": 128,
-            "stdout-size": 10485760,
-            "stderr-size": 10485760,
+            "stdout-size": 4096,
+            "stderr-size": 4096,
             "workspace-size": 134217728,
             "artifact-size": 1048576
           },

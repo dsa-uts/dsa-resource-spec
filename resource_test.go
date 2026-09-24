@@ -31,6 +31,8 @@ func TestDecodeRejections(t *testing.T) {
 		"negative timeout":         func(v map[string]any) { jsonStep(v)["timeout"] = -1 },
 		"timeout overflow":         func(v map[string]any) { jsonStep(v)["timeout"] = 1e30 },
 		"memory":                   func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["memory"] = -1 },
+		"stdout over maximum":      func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["stdout-size"] = (128 << 10) + 1 },
+		"stderr over maximum":      func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["stderr-size"] = (128 << 10) + 1 },
 		"missing limits":           func(v map[string]any) { delete(jsonJob(v), "limits") },
 		"zero CPU":                 func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = 0 },
 		"negative CPU":             func(v map[string]any) { jsonJob(v)["limits"].(map[string]any)["cpu"] = -1 },
