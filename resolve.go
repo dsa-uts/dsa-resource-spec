@@ -87,8 +87,8 @@ func resolveJob(root *os.Root, dir string, raw rawJob) (Job, error) {
 		out         *int64
 	}{
 		{"memory", raw.Limits.Memory, 128 << 20, &job.Limits.Memory},
-		{"stdout-size", raw.Limits.StdoutSize, 10 << 20, &job.Limits.StdoutSize},
-		{"stderr-size", raw.Limits.StderrSize, 10 << 20, &job.Limits.StderrSize},
+		{"stdout-size", raw.Limits.StdoutSize, 4 << 10, &job.Limits.StdoutSize},
+		{"stderr-size", raw.Limits.StderrSize, 4 << 10, &job.Limits.StderrSize},
 		{"workspace-size", raw.Limits.WorkspaceSize, 128 << 20, &job.Limits.WorkspaceSize},
 		{"artifact-size", raw.Limits.ArtifactSize, 1 << 20, &job.Limits.ArtifactSize},
 	} {

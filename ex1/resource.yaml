@@ -25,8 +25,8 @@ workflows:
           memory: 512MiB
           pids: 128
           step-timeout: "1s"
-          stdout-size: 1MiB
-          stderr-size: 1MiB
+          stdout-size: 4KiB
+          stderr-size: 4KiB
           workspace-size: 256MiB
           artifact-size: 1MiB
         artifacts:
@@ -54,8 +54,8 @@ workflows:
           memory: 512MiB
           pids: 128
           step-timeout: "1s"
-          stdout-size: 1MiB
-          stderr-size: 1MiB
+          stdout-size: 4KiB
+          stderr-size: 4KiB
           workspace-size: 256MiB
           artifact-size: 1MiB
         artifacts:
@@ -91,8 +91,8 @@ workflows:
           memory: 512MiB
           pids: 128
           step-timeout: "1s"
-          stdout-size: 1MiB
-          stderr-size: 1MiB
+          stdout-size: 4KiB
+          stderr-size: 4KiB
           workspace-size: 256MiB
           artifact-size: 1MiB
         artifacts:
@@ -147,8 +147,8 @@ workflows:
           memory: 512MiB
           pids: 128
           step-timeout: "1s"
-          stdout-size: 1MiB
-          stderr-size: 1MiB
+          stdout-size: 4KiB
+          stderr-size: 4KiB
           workspace-size: 256MiB
           artifact-size: 1MiB
         artifacts:
@@ -176,8 +176,8 @@ workflows:
           memory: 512MiB
           pids: 128
           step-timeout: "1s"
-          stdout-size: 1MiB
-          stderr-size: 1MiB
+          stdout-size: 4KiB
+          stderr-size: 4KiB
           workspace-size: 256MiB
           artifact-size: 1MiB
         artifacts:
@@ -213,8 +213,8 @@ workflows:
           memory: 512MiB
           pids: 128
           step-timeout: "1s"
-          stdout-size: 1MiB
-          stderr-size: 1MiB
+          stdout-size: 4KiB
+          stderr-size: 4KiB
           workspace-size: 256MiB
           artifact-size: 1MiB
         artifacts:

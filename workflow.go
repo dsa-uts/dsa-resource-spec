@@ -70,6 +70,9 @@ func validateJob(id string, job Job, jobs map[string]Job) error {
 	if limits.CPU < 1 || limits.PIDs < 1 || limits.Memory <= 0 || limits.StdoutSize <= 0 || limits.StderrSize <= 0 || limits.WorkspaceSize <= 0 || limits.ArtifactSize <= 0 {
 		return fmt.Errorf("invalid job limits")
 	}
+	if limits.StdoutSize > 128<<10 || limits.StderrSize > 128<<10 {
+		return fmt.Errorf("stdout-size and stderr-size must not exceed 128KiB")
+	}
 	if len(job.Steps) == 0 {
 		return fmt.Errorf("job requires steps")
 	}
