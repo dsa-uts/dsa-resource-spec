@@ -8,12 +8,12 @@ workflows:
       build:
         sandbox-image: ghcr.io/example/default:latest
         limits:
-          memory: 1GiB
-          cpu: 8
-          stdout-size: 127KiB
-          stderr-size: 128KiB
-          workspace-size: 2GiB
-          artifact-size: 2KiB
+          memory: 512MiB
+          cpu: 2
+          stdout-size: 31KiB
+          stderr-size: 32KiB
+          workspace-size: 128MiB
+          artifact-size: 1MiB
           pids: 256
           step-timeout: 1s
         steps:
@@ -27,12 +27,12 @@ workflows:
       public:
         sandbox-image: ghcr.io/example/default:latest
         limits:
-          memory: 1GiB
-          cpu: 8
-          stdout-size: 127KiB
-          stderr-size: 128KiB
-          workspace-size: 2GiB
-          artifact-size: 2KiB
+          memory: 512MiB
+          cpu: 2
+          stdout-size: 31KiB
+          stderr-size: 32KiB
+          workspace-size: 128MiB
+          artifact-size: 1MiB
           pids: 256
           step-timeout: 1s
         steps:
@@ -58,12 +58,12 @@ workflows:
         visibility: private
         sandbox-image: ghcr.io/example/default:latest
         limits:
-          memory: 1GiB
-          cpu: 8
-          stdout-size: 127KiB
-          stderr-size: 128KiB
-          workspace-size: 2GiB
-          artifact-size: 2KiB
+          memory: 512MiB
+          cpu: 2
+          stdout-size: 31KiB
+          stderr-size: 32KiB
+          workspace-size: 128MiB
+          artifact-size: 1MiB
           pids: 256
           step-timeout: 1s
         steps:

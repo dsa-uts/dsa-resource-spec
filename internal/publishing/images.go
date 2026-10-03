@@ -155,22 +155,22 @@ func (p publisher) pinImages(item resource.Resource, cache map[string]string) (r
 	for workflowID, workflow := range item.Workflows {
 		workflow.Jobs = maps.Clone(workflow.Jobs)
 		for jobID, job := range workflow.Jobs {
-			parsed, err := reference.ParseNamed(job.SandboxImage)
+			parsed, err := reference.ParseNamed(string(job.SandboxImage))
 			if err != nil {
 				return item, err
 			}
 			if _, pinned := parsed.(reference.Digested); pinned {
 				continue
 			}
-			value, ok := cache[job.SandboxImage]
+			value, ok := cache[string(job.SandboxImage)]
 			if !ok {
-				value, err = p.digest(job.SandboxImage, false)
+				value, err = p.digest(string(job.SandboxImage), false)
 				if err != nil {
 					return item, err
 				}
-				cache[job.SandboxImage] = value
+				cache[string(job.SandboxImage)] = value
 			}
-			job.SandboxImage = parsed.Name() + "@" + value
+			job.SandboxImage = resource.SandboxImage(parsed.Name() + "@" + value)
 			workflow.Jobs[jobID] = job
 		}
 		item.Workflows[workflowID] = workflow
@@ -181,7 +181,7 @@ func (p publisher) pinImages(item resource.Resource, cache map[string]string) (r
 func requirePinnedImages(item resource.Resource) error {
 	for _, workflow := range item.Workflows {
 		for _, job := range workflow.Jobs {
-			_, digest, found := strings.Cut(job.SandboxImage, "@")
+			_, digest, found := strings.Cut(string(job.SandboxImage), "@")
 			if !found || !digestPattern.MatchString(digest) {
 				return fmt.Errorf("unpinned image: %s", job.SandboxImage)
 			}

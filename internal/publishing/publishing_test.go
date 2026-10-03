@@ -161,7 +161,7 @@ func (f *fixture) published(version, digest string) {
 	must(f.t, err)
 	for _, workflow := range item.Workflows {
 		for _, job := range workflow.Jobs {
-			if job.SandboxImage != testImage+"@"+digest {
+			if string(job.SandboxImage) != testImage+"@"+digest {
 				f.t.Fatalf("unexpected image: %s", job.SandboxImage)
 			}
 		}
@@ -374,7 +374,7 @@ func TestImagePinningPreservesPortAndSource(t *testing.T) {
 	image := "registry.example:5000/sandbox:release"
 	for _, workflow := range item.Workflows {
 		for id, job := range workflow.Jobs {
-			job.SandboxImage = image
+			job.SandboxImage = resource.SandboxImage(image)
 			workflow.Jobs[id] = job
 		}
 	}
@@ -383,10 +383,10 @@ func TestImagePinningPreservesPortAndSource(t *testing.T) {
 	must(t, err)
 	for workflowID, workflow := range pinned.Workflows {
 		for jobID, job := range workflow.Jobs {
-			if job.SandboxImage != "registry.example:5000/sandbox@"+digestOne {
+			if string(job.SandboxImage) != "registry.example:5000/sandbox@"+digestOne {
 				t.Fatal("lost registry port")
 			}
-			if item.Workflows[workflowID].Jobs[jobID].SandboxImage != image {
+			if string(item.Workflows[workflowID].Jobs[jobID].SandboxImage) != image {
 				t.Fatal("mutated source resource")
 			}
 		}

@@ -7,7 +7,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9-]*$"
+          "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
         },
         "name": {
           "type": "string",
@@ -37,7 +37,7 @@
       "type": "object",
       "propertyNames": {
         "type": "string",
-        "pattern": "^[a-z][a-z0-9-]*$"
+        "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
       },
       "additionalProperties": {
         "type": "object",
@@ -87,7 +87,7 @@
             "type": "object",
             "propertyNames": {
               "type": "string",
-              "pattern": "^[a-z][a-z0-9-]*$"
+              "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
             },
             "additionalProperties": {
               "type": "object",
@@ -107,7 +107,7 @@
                   "type": "array",
                   "items": {
                     "type": "string",
-                    "pattern": "^[a-z][a-z0-9-]*$"
+                    "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
                   },
                   "uniqueItems": true
                 },
@@ -121,40 +121,45 @@
                     "cpu": {
                       "type": "integer",
                       "minimum": 1,
-                      "default": 1
+                      "default": 1,
+                      "maximum": 2
                     },
                     "memory": {
                       "type": "string",
                       "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
-                      "default": "128MiB"
+                      "default": "128MiB",
+                      "description": "Maximum 512MiB; enforced after conversion to bytes."
                     },
                     "pids": {
                       "type": "integer",
                       "minimum": 1,
-                      "default": 128
+                      "default": 128,
+                      "maximum": 256
                     },
                     "step-timeout": {
                       "$ref": "#/$defs/duration"
                     },
                     "stdout-size": {
                       "type": "string",
-                      "pattern": "^([1-9]|[1-9][0-9]|1[01][0-9]|12[0-8])KiB$",
+                      "pattern": "^([1-9]|[12][0-9]|3[0-2])KiB$",
                       "default": "4KiB"
                     },
                     "stderr-size": {
                       "type": "string",
-                      "pattern": "^([1-9]|[1-9][0-9]|1[01][0-9]|12[0-8])KiB$",
+                      "pattern": "^([1-9]|[12][0-9]|3[0-2])KiB$",
                       "default": "4KiB"
                     },
                     "workspace-size": {
                       "type": "string",
                       "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
-                      "default": "128MiB"
+                      "default": "128MiB",
+                      "description": "Maximum 128MiB; enforced after conversion to bytes."
                     },
                     "artifact-size": {
                       "type": "string",
                       "pattern": "^[1-9][0-9]*(KiB|MiB|GiB)$",
-                      "default": "1MiB"
+                      "default": "1MiB",
+                      "description": "Maximum 1MiB; enforced after conversion to bytes."
                     }
                   },
                   "required": [
@@ -172,11 +177,11 @@
                         "properties": {
                           "from-job": {
                             "type": "string",
-                            "pattern": "^[a-z][a-z0-9-]*$"
+                            "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
                           },
                           "name": {
                             "type": "string",
-                            "pattern": "^[a-z][a-z0-9-]*$"
+                            "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
                           },
                           "path": {
                             "type": "string",
@@ -199,7 +204,7 @@
                         "properties": {
                           "name": {
                             "type": "string",
-                            "pattern": "^[a-z][a-z0-9-]*$"
+                            "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
                           },
                           "path": {
                             "type": "string",

@@ -17,13 +17,13 @@
           "depends": null,
           "sandbox-image": "ghcr.io/example/default:latest",
           "limits": {
-            "cpu": 8,
-            "memory": 1073741824,
+            "cpu": 2,
+            "memory": 536870912,
             "pids": 256,
-            "stdout-size": 130048,
-            "stderr-size": 131072,
-            "workspace-size": 2147483648,
-            "artifact-size": 2048
+            "stdout-size": 31744,
+            "stderr-size": 32768,
+            "workspace-size": 134217728,
+            "artifact-size": 1048576
           },
           "artifacts": {
             "inputs": null,
@@ -59,13 +59,13 @@
           ],
           "sandbox-image": "ghcr.io/example/default:latest",
           "limits": {
-            "cpu": 8,
-            "memory": 1073741824,
+            "cpu": 2,
+            "memory": 536870912,
             "pids": 256,
-            "stdout-size": 130048,
-            "stderr-size": 131072,
-            "workspace-size": 2147483648,
-            "artifact-size": 2048
+            "stdout-size": 31744,
+            "stderr-size": 32768,
+            "workspace-size": 134217728,
+            "artifact-size": 1048576
           },
           "artifacts": {
             "inputs": [
@@ -100,13 +100,13 @@
           ],
           "sandbox-image": "ghcr.io/example/default:latest",
           "limits": {
-            "cpu": 8,
-            "memory": 1073741824,
+            "cpu": 2,
+            "memory": 536870912,
             "pids": 256,
-            "stdout-size": 130048,
-            "stderr-size": 131072,
-            "workspace-size": 2147483648,
-            "artifact-size": 2048
+            "stdout-size": 31744,
+            "stderr-size": 32768,
+            "workspace-size": 134217728,
+            "artifact-size": 1048576
           },
           "artifacts": {
             "inputs": [

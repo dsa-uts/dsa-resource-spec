@@ -13,15 +13,15 @@ type rawPresets struct {
 }
 
 type rawPreset struct {
-	Source string `yaml:"source"`
-	Path   string `yaml:"path"`
+	Source string      `yaml:"source"`
+	Path   RuntimePath `yaml:"path"`
 }
 
 type rawJob struct {
 	Name         string        `yaml:"name,omitempty"`
 	Visibility   string        `yaml:"visibility,omitempty"`
 	Depends      []string      `yaml:"depends,omitempty"`
-	SandboxImage string        `yaml:"sandbox-image"`
+	SandboxImage SandboxImage  `yaml:"sandbox-image"`
 	Limits       rawLimits     `yaml:"limits"`
 	Artifacts    *rawArtifacts `yaml:"artifacts,omitempty"`
 	Steps        []rawStep     `yaml:"steps"`
@@ -44,16 +44,16 @@ type rawArtifacts struct {
 }
 
 type rawArtifactInput struct {
-	FromJob string `yaml:"from-job"`
-	Name    string `yaml:"name"`
-	Path    string `yaml:"path"`
+	FromJob string      `yaml:"from-job"`
+	Name    string      `yaml:"name"`
+	Path    RuntimePath `yaml:"path"`
 }
 
 type rawArtifactOutput struct {
-	Name        string `yaml:"name"`
-	Path        string `yaml:"path"`
-	Visibility  string `yaml:"visibility,omitempty"`
-	ContentType string `yaml:"content-type,omitempty"`
+	Name        string      `yaml:"name"`
+	Path        RuntimePath `yaml:"path"`
+	Visibility  string      `yaml:"visibility,omitempty"`
+	ContentType string      `yaml:"content-type,omitempty"`
 }
 
 type rawStep struct {
@@ -77,9 +77,9 @@ type rawExpected struct {
 	Stderr   *rawStream `yaml:"stderr,omitempty"`
 }
 type rawMetadata struct {
-	ID      string `yaml:"id"`
-	Name    string `yaml:"name"`
-	Version string `yaml:"version"`
+	ID      string  `yaml:"id"`
+	Name    string  `yaml:"name"`
+	Version Version `yaml:"version"`
 }
 
 type rawImageBuild struct {
