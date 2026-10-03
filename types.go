@@ -32,13 +32,13 @@ type Job struct {
 }
 
 type Limits struct {
-	CPU           int   `json:"cpu" validate:"gte=1"`
-	Memory        int64 `json:"memory" validate:"gt=0"`
-	PIDs          int   `json:"pids" validate:"gte=1"`
-	StdoutSize    int64 `json:"stdout-size" validate:"gt=0,lte=131072"`
-	StderrSize    int64 `json:"stderr-size" validate:"gt=0,lte=131072"`
-	WorkspaceSize int64 `json:"workspace-size" validate:"gt=0"`
-	ArtifactSize  int64 `json:"artifact-size" validate:"gt=0"`
+	CPU           int   `json:"cpu" validate:"gte=1,lte=2"`
+	Memory        int64 `json:"memory" validate:"gt=0,lte=536870912"`
+	PIDs          int   `json:"pids" validate:"gte=1,lte=256"`
+	StdoutSize    int64 `json:"stdout-size" validate:"gt=0,lte=32768"`
+	StderrSize    int64 `json:"stderr-size" validate:"gt=0,lte=32768"`
+	WorkspaceSize int64 `json:"workspace-size" validate:"gt=0,lte=134217728"`
+	ArtifactSize  int64 `json:"artifact-size" validate:"gt=0,lte=1048576"`
 }
 
 type Artifacts struct {

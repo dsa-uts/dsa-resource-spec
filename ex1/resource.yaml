@@ -27,7 +27,7 @@ workflows:
           step-timeout: "1s"
           stdout-size: 4KiB
           stderr-size: 4KiB
-          workspace-size: 256MiB
+          workspace-size: 128MiB
           artifact-size: 1MiB
         artifacts:
           outputs:
@@ -56,7 +56,7 @@ workflows:
           step-timeout: "1s"
           stdout-size: 4KiB
           stderr-size: 4KiB
-          workspace-size: 256MiB
+          workspace-size: 128MiB
           artifact-size: 1MiB
         artifacts:
           inputs:
@@ -93,7 +93,7 @@ workflows:
           step-timeout: "1s"
           stdout-size: 4KiB
           stderr-size: 4KiB
-          workspace-size: 256MiB
+          workspace-size: 128MiB
           artifact-size: 1MiB
         artifacts:
           inputs:
@@ -149,7 +149,7 @@ workflows:
           step-timeout: "1s"
           stdout-size: 4KiB
           stderr-size: 4KiB
-          workspace-size: 256MiB
+          workspace-size: 128MiB
           artifact-size: 1MiB
         artifacts:
           outputs:
@@ -178,7 +178,7 @@ workflows:
           step-timeout: "1s"
           stdout-size: 4KiB
           stderr-size: 4KiB
-          workspace-size: 256MiB
+          workspace-size: 128MiB
           artifact-size: 1MiB
         artifacts:
           inputs:
@@ -215,7 +215,7 @@ workflows:
           step-timeout: "1s"
           stdout-size: 4KiB
           stderr-size: 4KiB
-          workspace-size: 256MiB
+          workspace-size: 128MiB
           artifact-size: 1MiB
         artifacts:
           inputs:

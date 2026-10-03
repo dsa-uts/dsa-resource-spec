@@ -1,0 +1,8 @@
+resource: {id: sample, name: Sample, version: v1.0.0}
+workflows:
+  main:
+    jobs:
+      run:
+        sandbox-image: registry.example.com/sample:v1
+        limits: {step-timeout: 1s, cpu: 3}
+        steps: [{run: echo ok}]

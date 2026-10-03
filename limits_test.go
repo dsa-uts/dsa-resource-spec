@@ -9,7 +9,7 @@ import (
 
 func TestOutputSizeLimits(t *testing.T) {
 	for _, field := range []string{"stdout-size", "stderr-size"} {
-		for _, size := range []int64{0, 1, 4, 99, 100, 119, 120, 127, 128, 129, 1024} {
+		for _, size := range []int64{0, 1, 4, 31, 32, 33, 128, 1024} {
 			t.Run(fmt.Sprintf("%s/%dKiB", field, size), func(t *testing.T) {
 				input := fmt.Sprintf(`resource: {id: sample, name: Sample, version: v1.0.0}
 workflows:
@@ -21,7 +21,7 @@ workflows:
         steps: [{run: echo ok}]
 `, field, size)
 				_, err := decodeDefinition([]byte(input))
-				valid := size > 0 && size <= 128
+				valid := size > 0 && size <= 32
 				if (err == nil) != valid {
 					t.Fatalf("YAML size %dKiB: %v", size, err)
 				}
