@@ -1,3 +1,18 @@
 {
-  "resources": {}
+  "resources": {
+    "ex1": {
+      "v1.0.0": {
+        "path": "release/ex1/v1.0.0.json",
+        "source-commit": "ade431dd4f73c9b752e43e41d0579d4fe491383f",
+        "resource-hash": "sha256:e5afe9a369e28a86cc6bad6785ef819a0a7f95687dfef9becfc2a172de743872"
+      }
+    },
+    "ex2": {
+      "v1.0.0": {
+        "path": "release/ex2/v1.0.0.json",
+        "source-commit": "ade431dd4f73c9b752e43e41d0579d4fe491383f",
+        "resource-hash": "sha256:81cc942e43f63e0d7e7ef252441d8875b893c9ae3feee3391f5b55f8456a7f9d"
+      }
+    }
+  }
 }
