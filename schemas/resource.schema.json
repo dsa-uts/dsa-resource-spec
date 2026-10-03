@@ -7,7 +7,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9-]*$"
+          "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
         },
         "name": {
           "type": "string",
@@ -37,7 +37,7 @@
       "type": "object",
       "propertyNames": {
         "type": "string",
-        "pattern": "^[a-z][a-z0-9-]*$"
+        "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
       },
       "additionalProperties": {
         "type": "object",
@@ -87,7 +87,7 @@
             "type": "object",
             "propertyNames": {
               "type": "string",
-              "pattern": "^[a-z][a-z0-9-]*$"
+              "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
             },
             "additionalProperties": {
               "type": "object",
@@ -107,7 +107,7 @@
                   "type": "array",
                   "items": {
                     "type": "string",
-                    "pattern": "^[a-z][a-z0-9-]*$"
+                    "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
                   },
                   "uniqueItems": true
                 },
@@ -172,11 +172,11 @@
                         "properties": {
                           "from-job": {
                             "type": "string",
-                            "pattern": "^[a-z][a-z0-9-]*$"
+                            "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
                           },
                           "name": {
                             "type": "string",
-                            "pattern": "^[a-z][a-z0-9-]*$"
+                            "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
                           },
                           "path": {
                             "type": "string",
@@ -199,7 +199,7 @@
                         "properties": {
                           "name": {
                             "type": "string",
-                            "pattern": "^[a-z][a-z0-9-]*$"
+                            "pattern": "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
                           },
                           "path": {
                             "type": "string",

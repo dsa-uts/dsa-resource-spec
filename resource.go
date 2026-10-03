@@ -14,8 +14,8 @@ import (
 // Marshal it with encoding/json to save or distribute it.
 type Resource struct {
 	Metadata      Metadata            `json:"metadata"`
-	RequiredFiles []string            `json:"required-files"`
-	Workflows     map[string]Workflow `json:"workflows"`
+	RequiredFiles []string            `json:"required-files" validate:"dive,notblank"`
+	Workflows     map[string]Workflow `json:"workflows" validate:"min=1,dive,keys,identifier,endkeys"`
 }
 
 // Hash returns the SHA-256 of the Resource's current JSON encoding.

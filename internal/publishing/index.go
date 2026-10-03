@@ -11,12 +11,10 @@ import (
 	"regexp"
 
 	resource "github.com/dsa-uts/dsa-resource-spec"
-	"golang.org/x/mod/semver"
 )
 
 var (
-	identifier    = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
-	fullVersion   = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+].*)?$`)
+	identifier    = regexp.MustCompile(`^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
 	digestPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 	commitPattern = regexp.MustCompile(`^[0-9a-f]{40,64}$`)
 )
@@ -32,7 +30,7 @@ type releaseIndex struct {
 }
 
 func releasePath(id, version string) (string, error) {
-	if !identifier.MatchString(id) || !fullVersion.MatchString(version) || !semver.IsValid(version) {
+	if !identifier.MatchString(id) || resource.Version(version).Validate() != nil {
 		return "", fmt.Errorf("invalid resource ID/version: %s/%s", id, version)
 	}
 	return "release/" + id + "/" + version + ".json", nil
@@ -111,7 +109,7 @@ func validateReleaseFile(path, id, version string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
-	if item.Metadata.ID != id || item.Metadata.Version != version {
+	if item.Metadata.ID != id || string(item.Metadata.Version) != version {
 		return fmt.Errorf("release metadata mismatch: %s", path)
 	}
 	if err := requirePinnedImages(*item); err != nil {

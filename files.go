@@ -3,19 +3,9 @@ package resource
 import (
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"strings"
 )
-
-// validateRuntimePath requires a non-empty POSIX relative path without
-// dot, dot-dot, or empty components.
-func validateRuntimePath(p string) error {
-	if p == "." || !fs.ValidPath(p) || strings.ContainsAny(p, "\\:\x00") {
-		return fmt.Errorf("invalid relative path %q", p)
-	}
-	return nil
-}
 
 // validateSourcePath allows dot and dot-dot components. The caller must resolve
 // the path through os.Root to enforce containment without lexical cleaning.

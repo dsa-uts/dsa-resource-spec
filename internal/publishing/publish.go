@@ -66,7 +66,7 @@ func (p publisher) publish(root string) error {
 func (p publisher) appendReleases(tree string, manifest *resource.Manifest, index releaseIndex, digests map[string]string, sourceCommit string) ([]string, error) {
 	var added []string
 	for _, item := range manifest.Resources {
-		id, version := item.Metadata.ID, item.Metadata.Version
+		id, version := item.Metadata.ID, string(item.Metadata.Version)
 		if _, exists := index.Resources[id][version]; exists {
 			continue
 		}
