@@ -70,12 +70,12 @@ restored, err := resource.DecodeResource(bytes.NewReader(data))
 | `LoadManifest(dir string) (*Manifest, error)` | `manifest.yaml` と全課題を検証し、参照ファイルの読み込み・単位変換・既定値の補完を行う。 |
 | `Resource.Hash() (string, error)` | 呼び出し時点の Resource の JSON から SHA-256 を計算する。 |
 | `DecodeResource(r io.Reader) (*Resource, error)` | 解決済み Resource の JSON を復元し、依存関係・実行制限などを検証する。未知フィールドと複数文書は拒否する。 |
-| `MatchOutput(actual, expected []byte, mode MatchMode) (bool, error)` | `MatchExact`・`MatchEasy`・`MatchSorted` で出力を比較する。未知・空のモードはエラー。不一致と不正な UTF-8 は `false, nil`。 |
+| `MatchOutput(actual, expected []byte, mode MatchMode) bool` | `MatchExact`・`MatchEasy`・`MatchSorted` で出力を比較する。不一致と未知・空のモードは `false`。UTF-8 の妥当性は検証しない。 |
 
 ```go
 if want := step.Expected.Stdout; want != nil {
-    matched, err := resource.MatchOutput(stdout, want.Content, want.Match)
-    // err は設定エラー、matched は比較結果として扱う。
+    matched := resource.MatchOutput(stdout, want.Content, want.Match)
+    // matched を比較結果として扱う。
 }
 ```
 

@@ -1,5 +1,5 @@
 // Package resource loads author manifests, validates self-contained resources,
-// and compares UTF-8 output against expectations.
+// and compares output against expectations.
 package resource
 
 import (
