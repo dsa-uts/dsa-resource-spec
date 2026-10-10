@@ -51,6 +51,7 @@ workflows:
 | --- | --- | --- |
 | `resource.id` | 必須 | リソースを識別する、バージョン間で共通の ID。マニフェストを使う場合はその `id` と一致する。 |
 | `resource.name` | 必須 | 課題の表示名。 |
+| `resource.description` | 任意 | 課題の短い説明。Unicodeの文字数で64文字以内。省略時は空文字。公開JSONにも `metadata.description` として出力する。 |
 | `resource.version` | 必須 | `vMAJOR.MINOR.PATCH` 形式の公開バージョン。プレリリース・ビルドメタデータを許可する。 |
 | `required-files` | 任意 | 課題全体の提出ファイルを案内する文字列配列。省略・`[]` は案内なし。 |
 | `workflows` | 必須 | ワークフロー ID をキーとするマップ。1 件以上必須。 |

@@ -7,7 +7,7 @@ import (
 )
 
 func TestExistingPublishedResources(t *testing.T) {
-	// Checked-in releases remain readable after migrating from the Python publisher.
+	// Validate the checked-in index, including an empty index after a release reset.
 	_, err := readIndex("../..")
 	must(t, err)
 }

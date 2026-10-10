@@ -1,7 +1,8 @@
 resource:
   version: v1.0.0
   id: ex2
-  name: 連結リスト，スタック，キュー
+  name: 課題2
+  description: 連結リスト，スタック，キュー
 required-files:
   - linked_list.h
   - linked_list.c

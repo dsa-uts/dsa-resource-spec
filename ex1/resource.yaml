@@ -1,7 +1,8 @@
 resource:
   version: "v1.0.0"
   id: ex1
-  name: C言語によるプログラミングの復習
+  name: 課題1
+  description: C言語によるプログラミングの復習
 required-files:
   - gcd_euclid.c
   - main_euclid.c
