@@ -3,6 +3,7 @@
     {
       "id": "sample",
       "name": "Test resource",
+      "description": "",
       "version": "v1.0.0"
     }
   ],

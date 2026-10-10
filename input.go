@@ -77,9 +77,10 @@ type rawExpected struct {
 	Stderr   *rawStream `yaml:"stderr,omitempty"`
 }
 type rawMetadata struct {
-	ID      string  `yaml:"id"`
-	Name    string  `yaml:"name"`
-	Version Version `yaml:"version"`
+	ID          string  `yaml:"id"`
+	Name        string  `yaml:"name"`
+	Description string  `yaml:"description"`
+	Version     Version `yaml:"version"`
 }
 
 type rawImageBuild struct {

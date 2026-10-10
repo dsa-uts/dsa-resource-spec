@@ -3,9 +3,10 @@ package resource
 import "time"
 
 type Metadata struct {
-	ID      string  `json:"id" validate:"identifier"`
-	Name    string  `json:"name" validate:"required"`
-	Version Version `json:"version" validate:"validateFn"`
+	ID          string  `json:"id" validate:"identifier"`
+	Name        string  `json:"name" validate:"required"`
+	Description string  `json:"description" validate:"max=64"`
+	Version     Version `json:"version" validate:"validateFn"`
 }
 
 type Workflow struct {
