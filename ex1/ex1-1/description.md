@@ -1,9 +1,10 @@
-# 基本課題
+# 概要
 [課題リンク](https://www.coins.tsukuba.ac.jp/~amagasa/lecture/dsa-jikken/report1/#_4)
 
 教科書リスト1-4（p. 7）の「ユークリッドの互除法」に基づいたプログラム`gcd_euclid.c`および`main_euclid.c`を作成しなさい。
 
-## ファイル gcd_euclid.c
+# ファイル
+## gcd_euclid.c
 ```c
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +18,7 @@ int gcd_euclid(int n, int m) {
 }
 ```
 
-## ファイル main_euclid.c
+## main_euclid.c
 ```c
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,24 +43,13 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-# 提出方法
-基本課題・発展課題をまとめて、次の5ファイルを提出ルート直下に配置して提出せよ。小問ごとのフォルダには分けない。1つの提出に両方の課題を実行する。
-
-- `gcd_euclid.c`
-- `main_euclid.c`
-- `gcd_recursive.c`
-- `main_recursive.c`
-- 共通の `Makefile`
-
-共通Makefileには両方のターゲットを定義する。
-
+## Makefile
 ```make
-.PHONY: all
-all: gcd_euclid gcd_recursive
+all: gcd_iter gcd_euclid gcd_recursive
+
+gcd_iter: gcd_iter.o main_iter.o
 
 gcd_euclid: gcd_euclid.o main_euclid.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 gcd_recursive: gcd_recursive.o main_recursive.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 ```
