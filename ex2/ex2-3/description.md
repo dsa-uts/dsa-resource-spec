@@ -1,4 +1,4 @@
-# 課題2-3 双方向循環リストの実装 (発展課題)
+# 概要
 [課題リンク](https://www.coins.tsukuba.ac.jp/~amagasa/lecture/dsa-jikken/report2/#2-3)
 
 課題2-3で実装する以下のソースコードをアップロードせよ。
@@ -23,8 +23,8 @@
 
 2.と3.の要件については、こちらで用意した`test_doublylinked_list.c`と`test_util.c`をコンパイル・実行してチェックする
 
-## 双方向循環リストの実装チェック
-#### ソースコード test_doublylinked_list.c
+# 双方向循環リストの実装チェック
+## test_doublylinked_list.c (こちらで用意します)
 ```c
 #include <stdio.h>
 #include <stdlib.h>
@@ -139,12 +139,12 @@ $op_i$は以下のいずれかである。
 * `display-reverse` : リストの内容を末尾から順に表示する
 * `search` $val$ : リストの中から値$val$を持つセルを探す。見つかった場合は`QUERY: $val found`というメッセージを末尾に改行をつけて出力する。ここで、`$val`はクエリに用いた値である。見つからなかった場合は`QUERY: $val not found`というメッセージを末尾に改行をつけて出力する。
 
-#### 制約
+## 制約
 * $1\leq Q \leq 20$
 * $1\leq val \leq 10$
 
-#### 具体例
-##### 標準入力1
+## 具体例
+### 標準入力1
 ```text
 20
 insert next 1 1
@@ -170,7 +170,7 @@ display
 
 ```
 
-##### 標準出力1
+### 標準出力1
 ```text
 1 
 1 5 
@@ -184,7 +184,7 @@ display
 
 ```
 
-##### 標準入力2
+### 標準入力2
 ```text
 4
 insert next 1 1
@@ -193,14 +193,14 @@ search 1
 search 3
 ```
 
-##### 標準出力2
+### 標準出力2
 ```text
 QUERY: 1 found
 QUERY: 3 not found
 ```
 
-## I/O関連のユーティリティ関数の実装チェック
-#### ソースコード test_util.c
+# I/O関連のユーティリティ関数の実装チェック
+## test_util.c (こちらで用意します)
 ```c
 #include <stdio.h>
 #include <stdlib.h>
@@ -256,26 +256,26 @@ int main(int argc, char *argv[]) {
 
 正常に動作するならば、標準出力には同じ内容の行が2回表示される。
 
-#### 制約
+## 制約
 * 入力される配列の長さ$n$は$1\leq n \leq 100$
 * リストに含まれる要素の値は$1\leq x \leq 100$
 
-#### 具体例1
-##### 標準入力 stdin.txt
+## 具体例1
+### 標準入力 stdin.txt
 ```text
 5
 1 2 3 4 5
 ```
 
-##### 実行コマンド
+### 実行コマンド
 ```bash
 $ ./test_util io_array < stdin.txt
 1 2 3 4 5
 1 2 3 4 5
 ```
 
-#### 具体例2
-##### 入力ファイル input.txt
+## 具体例2
+### 入力ファイル input.txt
 ```text
 1
 2
@@ -284,41 +284,10 @@ $ ./test_util io_array < stdin.txt
 5
 ```
 
-##### 実行コマンド
+### 実行コマンド
 ```bash
 $ ./test_util io_file input.txt
 1 2 3 4 5
 1 2 3 4 5
 ```
 
-## 提出方法
-
-基本課題・発展課題をまとめて、次のファイルを提出ルート直下に配置して提出せよ。
-小問ごとのフォルダには分けない。1つの提出に各小問のワークフローを実行する。
-発展課題を提出する場合は、そのソースコードも同じ場所に配置する。
-
-- `linked_list.h`、`linked_list.c`、`main_linked_list.c`
-- `queue.h`、`queue.c`、`main_queue.c`
-- `doublylinked_list.h`、`doublylinked_list.c`、`main_doublylinked_list.c`（発展課題）
-- 共通の `Makefile`
-
-共通の Makefile には、提出する各小問のターゲットを定義する。
-
-```make
-CC = gcc
-.PHONY: all
-all: linked_list queue doublylinked_list
-
-linked_list: linked_list.o main_linked_list.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-queue: queue.o main_queue.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-doublylinked_list: doublylinked_list.o main_doublylinked_list.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-```
-
-採点用のテストコードと入力ファイルは採点側が用意するため、提出不要。
-テストコードは `/preset/ex2-N/`（`N` は小問番号）から、提出されたヘッダーを
-`gcc -I.` で参照し、対応するオブジェクトファイルとリンクしてコンパイルする。
